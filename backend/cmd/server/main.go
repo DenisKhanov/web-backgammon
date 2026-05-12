@@ -9,6 +9,7 @@ import (
 	"github.com/denis/web-backgammon/internal/api"
 	"github.com/denis/web-backgammon/internal/config"
 	"github.com/denis/web-backgammon/internal/db"
+	"github.com/denis/web-backgammon/internal/ws"
 )
 
 func main() {
@@ -31,12 +32,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := api.NewServer(
-		db.NewRoomRepo(pool),
-		db.NewPlayerRepo(pool),
-		db.NewGameRepo(pool),
-		cfg.AllowedOrigins,
-	)
+	rooms := db.NewRoomRepo(pool)
+	players := db.NewPlayerRepo(pool)
+	games := db.NewGameRepo(pool)
+
+	hub := ws.NewHub(ws.DBRepos{
+		Rooms:   rooms,
+		Players: players,
+		Games:   games,
+	})
+
+	srv := api.NewServer(rooms, players, games, cfg.AllowedOrigins, hub)
 
 	addr := ":" + cfg.Port
 	slog.Info("server starting", "addr", addr)

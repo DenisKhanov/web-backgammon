@@ -9,6 +9,7 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 
 	"github.com/denis/web-backgammon/internal/db"
+	"github.com/denis/web-backgammon/internal/ws"
 )
 
 type Server struct {
@@ -17,15 +18,17 @@ type Server struct {
 	games     *db.GameRepo
 	sanitizer *bluemonday.Policy
 	origins   []string
+	hub       *ws.Hub
 }
 
-func NewServer(rooms *db.RoomRepo, players *db.PlayerRepo, games *db.GameRepo, origins []string) *Server {
+func NewServer(rooms *db.RoomRepo, players *db.PlayerRepo, games *db.GameRepo, origins []string, hub *ws.Hub) *Server {
 	return &Server{
 		rooms:     rooms,
 		players:   players,
 		games:     games,
 		sanitizer: bluemonday.StrictPolicy(),
 		origins:   origins,
+		hub:       hub,
 	}
 }
 
@@ -45,6 +48,7 @@ func (s *Server) Router() http.Handler {
 	r.With(joinRoomLimiter.middleware).Post("/api/rooms/{code}/join", s.joinRoom)
 	r.With(s.requireSession).Get("/api/games/{roomId}/state", s.getGameState)
 	r.With(s.requireSession).Get("/api/games/{roomId}/history", s.getGameHistory)
+	r.Get("/ws/{roomCode}", ws.Handler(s.hub))
 
 	return r
 }

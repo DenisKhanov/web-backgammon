@@ -56,6 +56,7 @@ func setupTestServer(t *testing.T) (http.Handler, *pgxpool.Pool) {
 		db.NewPlayerRepo(pool),
 		db.NewGameRepo(pool),
 		[]string{"http://localhost:3000"},
+		nil, // hub not needed for REST-only tests
 	)
 	return srv.Router(), pool
 }
