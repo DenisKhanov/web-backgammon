@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Exec(devin mcp)",
+      "Exec(find)",
+      "Exec(cat)",
+      "Exec(go get)",
+      "Exec(go mod)",
+      "Exec(go build)",
+      "Exec(git add)",
+      "Exec(mkdir)",
+      "Exec(git commit)",
+      "Exec(npm install)",
+      "Exec(npm run)",
+      "Exec(docker compose)",
+      "Exec(go test)",
+      "Exec(git checkout)",
+      "Exec(git diff)",
+      "Exec(git status)",
+      "Exec(git log)",
+      "Exec(grep nhooyr)",
+      "Exec(python3)",
+      "Exec(realpath)"
+    ]
+  },
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"],
+      "transport": "stdio"
+    }
+  }
+}
