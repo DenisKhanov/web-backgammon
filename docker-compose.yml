@@ -16,5 +16,29 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build: ./backend
+    container_name: backgammon-backend
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-bg_user}:${POSTGRES_PASSWORD:-bg_pass}@postgres:5432/${POSTGRES_DB:-backgammon}?sslmode=disable
+      PORT: "8080"
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      MIGRATIONS_DIR: migrations
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: backgammon-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
