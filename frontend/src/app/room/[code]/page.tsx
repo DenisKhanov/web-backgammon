@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import type { Room } from '@/lib/types';
 
@@ -9,6 +9,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 
 export default function RoomPage() {
   const params = useParams();
+  const router = useRouter();
   const code = (params.code as string).toUpperCase();
   const [room, setRoom] = useState<Room | null>(null);
   const [error, setError] = useState('');
@@ -26,6 +27,10 @@ export default function RoomPage() {
         }
         const data: Room = await res.json();
         setRoom(data);
+        if (data.status === 'playing') {
+          clearInterval(interval);
+          router.push(`/game/${code}`);
+        }
       } catch {
         setError('Ошибка соединения');
       }
