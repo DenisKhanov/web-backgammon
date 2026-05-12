@@ -15,3 +15,80 @@ func GenerateSingleMoves(b *Board, c Color, die int) []Move {
 	}
 	return out
 }
+
+// GenerateSequences returns all maximal-length move sequences for the given dice.
+// When only one die can be used and the dice are distinct, enforces the
+// "must use the larger die" rule.
+func GenerateSequences(b *Board, c Color, dice []int) [][]Move {
+	var all [][]Move
+	collect(b, c, dice, []Move{}, &all)
+
+	if len(all) == 0 {
+		return nil
+	}
+
+	maxLen := 0
+	for _, seq := range all {
+		if len(seq) > maxLen {
+			maxLen = len(seq)
+		}
+	}
+
+	var filtered [][]Move
+	for _, seq := range all {
+		if len(seq) == maxLen {
+			filtered = append(filtered, seq)
+		}
+	}
+
+	// If maxLen == 1 and dice had two distinct values, keep only sequences
+	// that use the larger die.
+	if maxLen == 1 && len(dice) == 2 && dice[0] != dice[1] {
+		larger := dice[0]
+		if dice[1] > larger {
+			larger = dice[1]
+		}
+		var onlyLarger [][]Move
+		for _, seq := range filtered {
+			if seq[0].Die == larger {
+				onlyLarger = append(onlyLarger, seq)
+			}
+		}
+		if len(onlyLarger) > 0 {
+			filtered = onlyLarger
+		}
+	}
+	return filtered
+}
+
+func collect(b *Board, c Color, dice []int, prefix []Move, out *[][]Move) {
+	if len(dice) == 0 {
+		cp := append([]Move(nil), prefix...)
+		*out = append(*out, cp)
+		return
+	}
+
+	anyMove := false
+	used := make(map[int]bool)
+	for i, die := range dice {
+		if used[die] {
+			continue
+		}
+		used[die] = true
+
+		moves := GenerateSingleMoves(b, c, die)
+		for _, m := range moves {
+			anyMove = true
+			sim := *b
+			_ = m.Apply(&sim, c)
+			rest := append([]int{}, dice[:i]...)
+			rest = append(rest, dice[i+1:]...)
+			collect(&sim, c, rest, append(prefix, m), out)
+		}
+	}
+
+	if !anyMove {
+		cp := append([]Move(nil), prefix...)
+		*out = append(*out, cp)
+	}
+}
