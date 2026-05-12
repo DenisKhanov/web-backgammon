@@ -17,7 +17,9 @@ type Config struct {
 
 func Load() (*Config, error) {
 	// Load .env if present; ignore error (file may not exist in production).
+	// Try current directory first, then parent (for running from backend/).
 	_ = godotenv.Load()
+	_ = godotenv.Load("../.env")
 
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
