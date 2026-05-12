@@ -16,6 +16,7 @@ Thumbs.db
 # Build artifacts
 backend/bin/
 backend/dist/
+backend/server
 frontend/.next/
 frontend/out/
 frontend/node_modules/
