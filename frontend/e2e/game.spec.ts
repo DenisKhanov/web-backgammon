@@ -46,7 +46,7 @@ test.describe('Full game lobby flow', () => {
     // This test requires a backend. Skip if not available.
     const resp = await page.request.get('http://localhost:8080/api/health').catch(() => null);
     if (!resp || !resp.ok()) {
-      test.skip();
+      test.skip(true, 'Backend not available');
       return;
     }
 

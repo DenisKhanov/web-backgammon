@@ -11,6 +11,7 @@ import (
 	"nhooyr.io/websocket"
 
 	"github.com/denis/web-backgammon/internal/game"
+	"github.com/microcosm-cc/bluemonday"
 )
 
 const (
@@ -37,8 +38,9 @@ type Room struct {
 	dbRoomID string
 
 	// Timers
-	turnTimer   *time.Timer
-	graceTimers [2]*time.Timer
+	turnTimer    *time.Timer
+	turnStartedAt time.Time
+	graceTimers  [2]*time.Timer
 }
 
 func newRoom(code string, hub *Hub) *Room {
@@ -261,9 +263,13 @@ func (r *Room) handleChat(c *Client, raw json.RawMessage) {
 	if len([]rune(p.Text)) > 500 {
 		return
 	}
+	sanitized := bluemonday.StrictPolicy().Sanitize(p.Text)
+	if sanitized == "" {
+		return
+	}
 	r.broadcastAll(mustEncode("chat_message", ChatMessagePayload{
 		From: c.name,
-		Text: p.Text,
+		Text: sanitized,
 		Time: time.Now().Format("15:04"),
 	}))
 }
@@ -283,6 +289,7 @@ func (r *Room) handleGameOver() {
 
 func (r *Room) startTurnTimer() {
 	r.stopTurnTimer()
+	r.turnStartedAt = time.Now()
 	r.turnTimer = time.AfterFunc(turnDuration, func() {
 		r.mu.Lock()
 		defer r.mu.Unlock()
@@ -377,6 +384,10 @@ func (r *Room) buildGameState(forColor game.Color) GameStatePayload {
 		{Name: r.names[1], Color: "black", Connected: r.clients[1] != nil},
 	}
 	timeLeft := int(turnDuration.Seconds())
+	if !r.turnStartedAt.IsZero() {
+		elapsed := time.Since(r.turnStartedAt)
+		timeLeft = int(max(0, turnDuration-elapsed))
+	}
 	return GameStatePayload{
 		Phase:         phaseName(r.g.Phase),
 		CurrentTurn:   colorName(r.g.CurrentTurn),

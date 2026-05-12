@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { POINT_W, BOARD_H, PADDING } from '@/lib/boardUtils';
 
 interface PointProps {
   index: number;      // 1–24
@@ -10,10 +11,6 @@ interface PointProps {
   onClick?: () => void;
   children?: React.ReactNode;
 }
-
-const POINT_W = 50;
-const BOARD_H = 500;
-const PADDING = 25;
 
 export default function Point({ index, isBottom, x, isValidTarget, onClick, children }: PointProps) {
   const isLight = index % 2 === 1;

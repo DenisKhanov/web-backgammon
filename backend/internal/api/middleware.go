@@ -75,24 +75,47 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 
 type ipLimiter struct {
 	mu       sync.Mutex
-	visitors map[string]*rate.Limiter
+	visitors map[string]*visitorEntry
 	r        rate.Limit
 	b        int
 }
 
+type visitorEntry struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
+}
+
 func newIPLimiter(r rate.Limit, b int) *ipLimiter {
-	return &ipLimiter{visitors: make(map[string]*rate.Limiter), r: r, b: b}
+	l := &ipLimiter{visitors: make(map[string]*visitorEntry), r: r, b: b}
+	// Periodic cleanup: remove entries older than 3 minutes.
+	go l.cleanup()
+	return l
+}
+
+func (l *ipLimiter) cleanup() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		l.mu.Lock()
+		for ip, v := range l.visitors {
+			if time.Since(v.lastSeen) > 3*time.Minute {
+				delete(l.visitors, ip)
+			}
+		}
+		l.mu.Unlock()
+	}
 }
 
 func (l *ipLimiter) get(ip string) *rate.Limiter {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if lim, ok := l.visitors[ip]; ok {
-		return lim
+	if entry, ok := l.visitors[ip]; ok {
+		entry.lastSeen = time.Now()
+		return entry.limiter
 	}
-	lim := rate.NewLimiter(l.r, l.b)
-	l.visitors[ip] = lim
-	return lim
+	entry := &visitorEntry{limiter: rate.NewLimiter(l.r, l.b), lastSeen: time.Now()}
+	l.visitors[ip] = entry
+	return entry.limiter
 }
 
 func (l *ipLimiter) middleware(next http.Handler) http.Handler {

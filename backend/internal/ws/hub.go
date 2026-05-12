@@ -21,13 +21,15 @@ type Hub struct {
 	rooms    map[string]*Room   // roomCode → Room
 	sessions map[string]*Client // sessionToken → Client
 	repos    DBRepos
+	origins  []string // allowed origins for WS upgrade
 }
 
-func NewHub(repos DBRepos) *Hub {
+func NewHub(repos DBRepos, origins []string) *Hub {
 	return &Hub{
 		rooms:    make(map[string]*Room),
 		sessions: make(map[string]*Client),
 		repos:    repos,
+		origins:  origins,
 	}
 }
 

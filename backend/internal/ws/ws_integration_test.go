@@ -60,7 +60,7 @@ func setupTestInfra(t *testing.T) (*pgxpool.Pool, *httptest.Server) {
 	players := db.NewPlayerRepo(pool)
 	games := db.NewGameRepo(pool)
 
-	hub := internalws.NewHub(internalws.DBRepos{Rooms: rooms, Players: players, Games: games})
+	hub := internalws.NewHub(internalws.DBRepos{Rooms: rooms, Players: players, Games: games}, []string{"*"})
 	srv := api.NewServer(rooms, players, games, []string{"*"}, hub)
 
 	ts := httptest.NewServer(srv.Router())

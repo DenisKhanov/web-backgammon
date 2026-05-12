@@ -9,6 +9,7 @@ import (
 	"nhooyr.io/websocket"
 
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/time/rate"
 )
 
 // Handler returns an http.Handler that upgrades GET /ws/{roomCode} to WebSocket.
@@ -44,9 +45,9 @@ func Handler(hub *Hub) http.HandlerFunc {
 			return
 		}
 
-		// Upgrade to WebSocket.
+		// Upgrade to WebSocket with origin validation.
 		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-			InsecureSkipVerify: true, // TODO: restrict to ALLOWED_ORIGINS in production
+			OriginPatterns: hub.origins,
 		})
 		if err != nil {
 			slog.Error("ws accept", "err", err)
@@ -60,6 +61,7 @@ func Handler(hub *Hub) http.HandlerFunc {
 			sessionToken: sessionToken,
 			name:         player.Name,
 			send:         make(chan []byte, 64),
+			limiter:      rate.NewLimiter(10, 15), // 10 msg/sec, burst 15
 		}
 
 		// Check for reconnect first.

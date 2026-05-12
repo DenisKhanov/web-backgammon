@@ -1,6 +1,7 @@
 'use client';
 
 import Checker from './Checker';
+import { BOARD_H, PADDING } from '@/lib/boardUtils';
 import type { Color } from '@/lib/types';
 
 const MAX_VISIBLE = 5;
@@ -29,8 +30,8 @@ export default function CheckerStack({
     <>
       {Array.from({ length: visible }).map((_, i) => {
         const cy = isBottom
-          ? 500 - 25 - radius - i * step
-          : 25 + radius + i * step;
+          ? BOARD_H - PADDING - radius - i * step
+          : PADDING + radius + i * step;
         return (
           <Checker
             key={i}
@@ -43,8 +44,8 @@ export default function CheckerStack({
       })}
       {count > MAX_VISIBLE && (() => {
         const topCy = isBottom
-          ? 500 - 25 - radius - (MAX_VISIBLE - 1) * step
-          : 25 + radius + (MAX_VISIBLE - 1) * step;
+          ? BOARD_H - PADDING - radius - (MAX_VISIBLE - 1) * step
+          : PADDING + radius + (MAX_VISIBLE - 1) * step;
         return (
           <text
             x={cx}

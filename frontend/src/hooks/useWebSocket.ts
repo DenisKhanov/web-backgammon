@@ -9,7 +9,6 @@ import type {
   TurnChangedPayload,
   ChatMessagePayload,
   GameOverPayload,
-  OpponentMovedPayload,
   MoveErrorPayload,
   OpponentDisconnectedPayload,
   Move,
@@ -22,9 +21,6 @@ export function useWebSocket(roomCode: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const backoffRef = useRef(1000);
   const mountedRef = useRef(true);
-
-  const { setGameState, setMyColor, reset: resetGame } = useGameStore();
-  const { addMessage } = useChatStore();
 
   const connect = useCallback(() => {
     if (!mountedRef.current) return;
@@ -57,9 +53,13 @@ export function useWebSocket(roomCode: string) {
     ws.onerror = () => {
       ws.close();
     };
-  }, [roomCode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roomCode]);
 
   function handleMessage(type: string, payload: unknown) {
+    // Access stores via getState() to avoid stale closure issues.
+    const { setGameState, setMyColor } = useGameStore.getState();
+    const { addMessage } = useChatStore.getState();
+
     switch (type) {
       case 'game_state': {
         const p = payload as GameStatePayload;
@@ -137,9 +137,9 @@ export function useWebSocket(roomCode: string) {
     return () => {
       mountedRef.current = false;
       wsRef.current?.close();
-      resetGame();
+      useGameStore.getState().reset();
     };
-  }, [connect, resetGame]);
+  }, [connect]);
 
   // --- Send helpers ---
 

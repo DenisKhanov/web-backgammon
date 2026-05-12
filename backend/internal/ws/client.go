@@ -8,6 +8,7 @@ import (
 	"nhooyr.io/websocket"
 
 	"github.com/denis/web-backgammon/internal/game"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -25,6 +26,7 @@ type Client struct {
 	color        game.Color // assigned when the room starts
 	name         string
 	send         chan []byte
+	limiter      *rate.Limiter // per-client message rate limit
 }
 
 // run starts the read and write goroutines and blocks until the connection closes.
@@ -46,6 +48,10 @@ func (c *Client) readPump(ctx context.Context) {
 		_, data, err := c.conn.Read(ctx)
 		if err != nil {
 			return
+		}
+		if !c.limiter.Allow() {
+			c.sendMsg(mustEncode("move_error", MoveErrorPayload{Reason: "rate_limit"}))
+			continue
 		}
 		c.hub.dispatch(c, data)
 	}

@@ -40,7 +40,7 @@ func main() {
 		Rooms:   rooms,
 		Players: players,
 		Games:   games,
-	})
+	}, cfg.AllowedOrigins)
 
 	srv := api.NewServer(rooms, players, games, cfg.AllowedOrigins, hub)
 
