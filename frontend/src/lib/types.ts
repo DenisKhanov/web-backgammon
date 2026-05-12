@@ -60,3 +60,72 @@ export interface JoinRoomResponse {
   color: Color | null;
   sessionToken: string;
 }
+
+// ─── WebSocket wire types (must match backend internal/ws/message.go) ────────
+
+export interface WSMessage {
+  type: string;
+  payload?: unknown;
+}
+
+export interface BoardPoint {
+  owner: 0 | 1 | 2; // 0=none 1=white 2=black
+  checkers: number;
+}
+
+export interface PlayerSnapshot {
+  name: string;
+  color: Color;
+  connected: boolean;
+}
+
+// Server → client payloads
+export interface GameStatePayload {
+  phase: GamePhase;
+  currentTurn: Color | '';
+  board: BoardPoint[]; // [25] index 0 unused
+  borneOff: number[]; // [3] index 1=white, 2=black
+  dice: number[];
+  remainingDice: number[];
+  moveCount: number;
+  myColor: Color;
+  players: PlayerSnapshot[];
+  timeLeft: number;
+}
+
+export interface DiceRolledPayload {
+  dice: number[];
+  isDouble: boolean;
+  player: Color;
+}
+
+export interface OpponentMovedPayload {
+  from: number;
+  to: number;
+  die: number;
+  remainingDice: number[];
+}
+
+export interface TurnChangedPayload {
+  player: Color;
+  timeLeft: number;
+}
+
+export interface MoveErrorPayload {
+  reason: string;
+}
+
+export interface ChatMessagePayload {
+  from: string;
+  text: string;
+  time: string;
+}
+
+export interface GameOverPayload {
+  winner: Color;
+  isMars: boolean;
+}
+
+export interface OpponentDisconnectedPayload {
+  gracePeriod: number;
+}
