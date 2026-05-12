@@ -48,7 +48,7 @@ func setupTestServer(t *testing.T) (http.Handler, *pgxpool.Pool) {
 	t.Cleanup(pool.Close)
 
 	_, filename, _, _ := runtime.Caller(0)
-	migrationsDir := filepath.Join(filepath.Dir(filename), "../../../migrations")
+	migrationsDir := filepath.Join(filepath.Dir(filename), "../../migrations")
 	require.NoError(t, db.RunMigrations(ctx, pool, migrationsDir))
 
 	srv := api.NewServer(

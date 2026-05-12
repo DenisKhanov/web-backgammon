@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bufio"
 	"context"
 	"log/slog"
 	"net"
@@ -37,6 +38,15 @@ type statusWriter struct {
 func (sw *statusWriter) WriteHeader(code int) {
 	sw.status = code
 	sw.ResponseWriter.WriteHeader(code)
+}
+
+// Hijack delegates to the underlying ResponseWriter if it implements http.Hijacker.
+// This is required for WebSocket upgrade requests that pass through loggingMiddleware.
+func (sw *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := sw.ResponseWriter.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+	return nil, nil, http.ErrNotSupported
 }
 
 // --- CORS ---
