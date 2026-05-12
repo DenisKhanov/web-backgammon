@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Board, Color, GamePhase, Move } from '@/lib/types';
+import type { Board, Color, GamePhase, Move, PlayerSnapshot } from '@/lib/types';
 
 interface GameStore {
   board: Board | null;
@@ -11,6 +11,9 @@ interface GameStore {
   selectedChecker: number | null;
   validMoves: Move[];
   timeLeft: number;
+  winner: Color | null;
+  isMars: boolean;
+  players: PlayerSnapshot[] | null;
 
   // Setters called by the WS hook (Phase 3)
   setGameState: (state: Partial<GameStore>) => void;
@@ -29,6 +32,9 @@ const initialState = {
   selectedChecker: null,
   validMoves: [],
   timeLeft: 60,
+  winner: null,
+  isMars: false,
+  players: null,
 };
 
 export const useGameStore = create<GameStore>((set) => ({
