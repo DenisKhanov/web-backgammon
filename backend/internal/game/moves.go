@@ -8,9 +8,26 @@ func GenerateSingleMoves(b *Board, c Color, die int) []Move {
 			continue
 		}
 		to := from + c.Direction()*die
-		m := Move{From: from, To: to, Die: die}
-		if ok, _ := IsValidMove(b, c, m); ok {
-			out = append(out, m)
+		if to >= 1 && to <= 24 {
+			m := Move{From: from, To: to, Die: die}
+			if ok, _ := IsValidMove(b, c, m); ok {
+				out = append(out, m)
+			}
+		}
+	}
+
+	// Bear-off moves when all checkers are in home.
+	if b.AllInHome(c) {
+		target := c.BearOffTarget()
+		// Exact bear-off.
+		exact := pointForBearOffDie(c, die)
+		if exact >= 1 && exact <= 24 && b.Points[exact].Owner == c && b.Points[exact].Checkers > 0 {
+			out = append(out, Move{From: exact, To: target, Die: die})
+		}
+		// Fallback: highest occupied point when die > its distance.
+		highest := highestOccupiedInHome(b, c)
+		if highest > 0 && distanceToBearOff(c, highest) < die {
+			out = append(out, Move{From: highest, To: target, Die: die})
 		}
 	}
 	return out

@@ -29,6 +29,42 @@ func TestGenerateSingleMoves_MultipleSources(t *testing.T) {
 	assert.Contains(t, moves, Move{From: 20, To: 16, Die: 4})
 }
 
+func TestGenerateSingleMoves_BearOff_Exact(t *testing.T) {
+	b := &Board{}
+	b.Points[6] = Point{Owner: White, Checkers: 15}
+	moves := GenerateSingleMoves(b, White, 6)
+	hasBearOff := false
+	for _, m := range moves {
+		if m.From == 6 && m.To == 0 {
+			hasBearOff = true
+		}
+	}
+	assert.True(t, hasBearOff)
+}
+
+func TestGenerateSingleMoves_BearOff_FallbackHigher(t *testing.T) {
+	b := &Board{}
+	b.Points[4] = Point{Owner: White, Checkers: 15}
+	moves := GenerateSingleMoves(b, White, 6)
+	hasBearOff := false
+	for _, m := range moves {
+		if m.From == 4 && m.To == 0 {
+			hasBearOff = true
+		}
+	}
+	assert.True(t, hasBearOff, "die=6 > top=4, fallback bear-off from 4 must be available")
+}
+
+func TestGenerateSingleMoves_BearOff_FallbackBlocked(t *testing.T) {
+	b := &Board{}
+	b.Points[4] = Point{Owner: White, Checkers: 1}
+	b.Points[5] = Point{Owner: White, Checkers: 14}
+	moves := GenerateSingleMoves(b, White, 6)
+	for _, m := range moves {
+		assert.False(t, m.From == 4 && m.To == 0, "must not bear off from 4 when 5 has checkers")
+	}
+}
+
 func TestGenerateSequences_TwoDistinctDice(t *testing.T) {
 	b := &Board{}
 	b.Points[24] = Point{Owner: White, Checkers: 2}
@@ -81,10 +117,13 @@ func TestGenerateSequences_NoMovesAvailable(t *testing.T) {
 }
 
 func TestGenerateSequences_MustUseLargerDie(t *testing.T) {
-	// Single checker at 8. Die=3→5, die=5→3 (both 1-move sequences since
-	// bear-off is not yet enabled). Larger-die rule must keep only die=5.
+	// Checker at 14, opponent at 6 blocks both second moves:
+	//   die=3: 14→11, then die=5: 11→6 blocked → length 1
+	//   die=5: 14→9,  then die=3:  9→6 blocked → length 1
+	// Both sequences have length 1; larger-die rule must keep only die=5.
 	b := &Board{}
-	b.Points[8] = Point{Owner: White, Checkers: 1}
+	b.Points[14] = Point{Owner: White, Checkers: 1}
+	b.Points[6] = Point{Owner: Black, Checkers: 1}
 
 	sequences := GenerateSequences(b, White, []int{3, 5})
 

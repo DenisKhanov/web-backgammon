@@ -15,14 +15,16 @@ func IsValidMove(b *Board, c Color, m Move) (bool, error) {
 		return false, fmt.Errorf("no %v checker at %d", c, m.From)
 	}
 
+	// Bear-off must be checked before direction/expectedTo since fallback
+	// bear-offs have from-die*dir != BearOffTarget.
+	if m.To == c.BearOffTarget() {
+		return isValidBearOff(b, c, m)
+	}
+
 	expectedTo := m.From + c.Direction()*m.Die
 	if expectedTo != m.To {
 		return false, fmt.Errorf("die %d from %d for %v leads to %d, not %d",
 			m.Die, m.From, c, expectedTo, m.To)
-	}
-
-	if m.To == c.BearOffTarget() {
-		return isValidBearOff(b, c, m)
 	}
 
 	if m.To < 1 || m.To > 24 {
@@ -41,9 +43,26 @@ func IsValidMove(b *Board, c Color, m Move) (bool, error) {
 	return true, nil
 }
 
-// isValidBearOff — заглушка, полная реализация в Task 1.10.
 func isValidBearOff(b *Board, c Color, m Move) (bool, error) {
-	return false, fmt.Errorf("bear-off not yet allowed in this task")
+	if !b.AllInHome(c) {
+		return false, fmt.Errorf("cannot bear off: not all checkers are in home")
+	}
+
+	srcDist := distanceToBearOff(c, m.From)
+
+	if srcDist == m.Die {
+		return true, nil
+	}
+
+	if m.Die > srcDist {
+		highest := highestOccupiedInHome(b, c)
+		if distanceToBearOff(c, highest) == srcDist {
+			return true, nil
+		}
+		return false, fmt.Errorf("bear-off from %d with die %d not allowed: higher checker on %d", m.From, m.Die, highest)
+	}
+
+	return false, fmt.Errorf("invalid bear-off attempt from %d with die %d", m.From, m.Die)
 }
 
 // wouldCreateGlukhoiZabor моделирует ход и проверяет, образуется ли непрерывный
