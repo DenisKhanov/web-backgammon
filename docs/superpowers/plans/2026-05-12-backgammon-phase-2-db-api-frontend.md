@@ -1,6 +1,6 @@
 # Web-Backgammon Phase 2 — DB Layer + REST API + Frontend Scaffold
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build the PostgreSQL persistence layer with versioned migrations, a chi-based REST API for room and player management, and a Next.js frontend scaffold (neumorphic UI, Zustand stores, landing page, room waiting page) — delivering a runnable lobby where two players can find each other before the WebSocket game begins in Phase 3.
 
@@ -74,7 +74,7 @@ docker-compose.yml              # add backend service
 
 **Files:** Modify `backend/go.mod` (via `go get`)
 
-- [ ] **Step 1: Add all runtime and test dependencies**
+- [x] **Step 1: Add all runtime and test dependencies**
 
 ```bash
 cd backend
@@ -89,7 +89,7 @@ go get github.com/testcontainers/testcontainers-go/modules/postgres@latest
 go mod tidy
 ```
 
-- [ ] **Step 2: Verify build still compiles**
+- [x] **Step 2: Verify build still compiles**
 
 ```bash
 cd backend && go build ./...
@@ -97,7 +97,7 @@ cd backend && go build ./...
 
 Expected: no output (success).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd backend
@@ -111,7 +111,7 @@ git commit -m "chore(backend): add chi, pgx/v5, uuid, bluemonday, x/time, testco
 
 **Files:** Create `backend/internal/config/config.go`
 
-- [ ] **Step 1: Write the config file**
+- [x] **Step 1: Write the config file**
 
 ```go
 package config
@@ -172,7 +172,7 @@ func Load() (*Config, error) {
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 ```bash
 cd backend && go build ./internal/config/...
@@ -180,7 +180,7 @@ cd backend && go build ./internal/config/...
 
 Expected: no output.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/internal/config/
@@ -193,7 +193,7 @@ git commit -m "feat(config): add Config struct loaded from env with defaults"
 
 **Files:** Create all files in `backend/migrations/`
 
-- [ ] **Step 1: Create migrations directory and 001_rooms**
+- [x] **Step 1: Create migrations directory and 001_rooms**
 
 ```bash
 mkdir -p backend/migrations
@@ -218,7 +218,7 @@ CREATE INDEX idx_rooms_expires  ON rooms(expires_at) WHERE status != 'finished';
 DROP TABLE IF EXISTS rooms;
 ```
 
-- [ ] **Step 2: Create 002_players**
+- [x] **Step 2: Create 002_players**
 
 `backend/migrations/002_players.up.sql`:
 ```sql
@@ -241,7 +241,7 @@ CREATE INDEX idx_players_session ON players(session_token);
 DROP TABLE IF EXISTS players;
 ```
 
-- [ ] **Step 3: Create 003_games**
+- [x] **Step 3: Create 003_games**
 
 `backend/migrations/003_games.up.sql`:
 ```sql
@@ -269,7 +269,7 @@ CREATE INDEX idx_games_room ON games(room_id);
 DROP TABLE IF EXISTS games;
 ```
 
-- [ ] **Step 4: Create 004_moves_results_chat**
+- [x] **Step 4: Create 004_moves_results_chat**
 
 `backend/migrations/004_moves_results_chat.up.sql`:
 ```sql
@@ -317,7 +317,7 @@ DROP TABLE IF EXISTS game_results;
 DROP TABLE IF EXISTS moves;
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/migrations/
@@ -330,7 +330,7 @@ git commit -m "feat(db): add SQL migrations for rooms, players, games, moves, re
 
 **Files:** Create `backend/internal/db/db.go`
 
-- [ ] **Step 1: Write db.go**
+- [x] **Step 1: Write db.go**
 
 ```go
 package db
@@ -431,7 +431,7 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, dir string) error {
 }
 ```
 
-- [ ] **Step 2: Verify compilation**
+- [x] **Step 2: Verify compilation**
 
 ```bash
 cd backend && go build ./internal/db/...
@@ -439,7 +439,7 @@ cd backend && go build ./internal/db/...
 
 Expected: no output.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/internal/db/db.go
@@ -452,7 +452,7 @@ git commit -m "feat(db): add pgxpool Connect and custom SQL migration runner"
 
 **Files:** Create `backend/internal/db/model.go`
 
-- [ ] **Step 1: Write model.go**
+- [x] **Step 1: Write model.go**
 
 ```go
 package db
@@ -494,13 +494,13 @@ type GameRecord struct {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 cd backend && go build ./internal/db/...
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/internal/db/model.go
@@ -513,7 +513,7 @@ git commit -m "feat(db): add Room, Player, GameRecord model types"
 
 **Files:** Create `backend/internal/db/rooms.go`
 
-- [ ] **Step 1: Write rooms.go**
+- [x] **Step 1: Write rooms.go**
 
 ```go
 package db
@@ -580,13 +580,13 @@ func generateRoomCode() (string, error) {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 cd backend && go build ./internal/db/...
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/internal/db/rooms.go
@@ -599,7 +599,7 @@ git commit -m "feat(db): add RoomRepo with Create, FindByCode, UpdateStatus"
 
 **Files:** Create `backend/internal/db/players.go`
 
-- [ ] **Step 1: Write players.go**
+- [x] **Step 1: Write players.go**
 
 ```go
 package db
@@ -684,13 +684,13 @@ func generateSessionToken() (string, error) {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 cd backend && go build ./internal/db/...
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/internal/db/players.go
@@ -705,7 +705,7 @@ git commit -m "feat(db): add PlayerRepo with Create, FindBySession, FindByRoom, 
 
 The GameRepo is written now but only called from Phase 3 (WS layer). Its `Create` takes `boardJSON []byte` so the `db` package does not import `internal/game`.
 
-- [ ] **Step 1: Write games.go**
+- [x] **Step 1: Write games.go**
 
 ```go
 package db
@@ -775,13 +775,13 @@ func (r *GameRepo) UpdateState(ctx context.Context, gameID string,
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 cd backend && go build ./internal/db/...
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/internal/db/games.go
@@ -796,7 +796,7 @@ git commit -m "feat(db): add GameRepo with Create, FindByRoomID, UpdateState"
 
 Build tag `integration` keeps these out of plain `go test ./...`.
 
-- [ ] **Step 1: Write integration_test.go**
+- [x] **Step 1: Write integration_test.go**
 
 ```go
 //go:build integration
@@ -957,13 +957,13 @@ import "github.com/jackc/pgx/v5/pgxpool"
 
 And change `*db.Pool` to `*pgxpool.Pool` everywhere in the test helper.
 
-- [ ] **Step 2: Fix the test helper signature to use `*pgxpool.Pool`**
+- [x] **Step 2: Fix the test helper signature to use `*pgxpool.Pool`**
 
 Replace `func setupTestDB(t *testing.T) *db.Pool {` with `func setupTestDB(t *testing.T) *pgxpool.Pool {`
 
 And add `"github.com/jackc/pgx/v5/pgxpool"` to imports.
 
-- [ ] **Step 3: Run integration tests** (requires Docker)
+- [x] **Step 3: Run integration tests** (requires Docker)
 
 ```bash
 cd backend && go test -tags integration -v -timeout 120s ./internal/db/...
@@ -975,7 +975,7 @@ PASS
 ok  	github.com/denis/web-backgammon/internal/db
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/internal/db/integration_test.go
@@ -990,7 +990,7 @@ git commit -m "test(db): add integration tests for RoomRepo, PlayerRepo, GameRep
 
 **Files:** Create `backend/internal/api/server.go`
 
-- [ ] **Step 1: Write server.go**
+- [x] **Step 1: Write server.go**
 
 ```go
 package api
@@ -1051,13 +1051,13 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 cd backend && go build ./internal/api/...
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/internal/api/server.go
@@ -1070,7 +1070,7 @@ git commit -m "feat(api): add Server struct and chi router with middleware chain
 
 **Files:** Create `backend/internal/api/middleware.go`
 
-- [ ] **Step 1: Write middleware.go**
+- [x] **Step 1: Write middleware.go**
 
 ```go
 package api
@@ -1200,13 +1200,13 @@ func playerFromCtx(ctx context.Context) *db.Player {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 cd backend && go build ./internal/api/...
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/internal/api/middleware.go
@@ -1219,7 +1219,7 @@ git commit -m "feat(api): add logging, CORS, IP rate-limit, and session-auth mid
 
 **Files:** Create `backend/internal/api/rooms.go`
 
-- [ ] **Step 1: Write rooms.go**
+- [x] **Step 1: Write rooms.go**
 
 ```go
 package api
@@ -1385,13 +1385,13 @@ func sessionCookie(token string) *http.Cookie {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 cd backend && go build ./internal/api/...
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/internal/api/rooms.go
@@ -1404,7 +1404,7 @@ git commit -m "feat(api): add createRoom, getRoom, joinRoom handlers"
 
 **Files:** Create `backend/internal/api/games.go` and `backend/internal/api/health.go`
 
-- [ ] **Step 1: Write games.go**
+- [x] **Step 1: Write games.go**
 
 ```go
 package api
@@ -1461,7 +1461,7 @@ func (s *Server) getGameHistory(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 2: Write health.go**
+- [x] **Step 2: Write health.go**
 
 ```go
 package api
@@ -1473,13 +1473,13 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 ```bash
 cd backend && go build ./internal/api/...
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/internal/api/games.go backend/internal/api/health.go
@@ -1492,7 +1492,7 @@ git commit -m "feat(api): add getGameState (resync endpoint) and health check"
 
 **Files:** Create `backend/internal/api/integration_test.go`
 
-- [ ] **Step 1: Write integration_test.go**
+- [x] **Step 1: Write integration_test.go**
 
 ```go
 //go:build integration
@@ -1710,7 +1710,7 @@ func TestGetGameState_NotFound(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run API integration tests**
+- [x] **Step 2: Run API integration tests**
 
 ```bash
 cd backend && go test -tags integration -v -timeout 120s ./internal/api/...
@@ -1718,7 +1718,7 @@ cd backend && go test -tags integration -v -timeout 120s ./internal/api/...
 
 Expected: all 6 tests pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/internal/api/integration_test.go
@@ -1731,7 +1731,7 @@ git commit -m "test(api): add integration tests for all REST endpoints via testc
 
 **Files:** Modify `backend/cmd/server/main.go`, create `backend/Dockerfile`
 
-- [ ] **Step 1: Write main.go**
+- [x] **Step 1: Write main.go**
 
 ```go
 package main
@@ -1783,7 +1783,7 @@ func main() {
 }
 ```
 
-- [ ] **Step 2: Verify the full binary builds**
+- [x] **Step 2: Verify the full binary builds**
 
 ```bash
 cd backend && go build -o /tmp/backgammon-server ./cmd/server/main.go
@@ -1791,7 +1791,7 @@ cd backend && go build -o /tmp/backgammon-server ./cmd/server/main.go
 
 Expected: no errors.
 
-- [ ] **Step 3: Write backend/Dockerfile**
+- [x] **Step 3: Write backend/Dockerfile**
 
 ```dockerfile
 # Build stage
@@ -1811,7 +1811,7 @@ EXPOSE 8080
 ENTRYPOINT ["/app/server"]
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/cmd/server/main.go backend/Dockerfile
@@ -1826,13 +1826,13 @@ git commit -m "feat(server): wire config, DB pool, migrations, and chi API serve
 
 **Files:** Modify `frontend/package.json`
 
-- [ ] **Step 1: Install Zustand and Framer Motion**
+- [x] **Step 1: Install Zustand and Framer Motion**
 
 ```bash
 cd frontend && npm install zustand framer-motion
 ```
 
-- [ ] **Step 2: Verify the build still works**
+- [x] **Step 2: Verify the build still works**
 
 ```bash
 cd frontend && npm run build
@@ -1840,7 +1840,7 @@ cd frontend && npm run build
 
 Expected: build completes without errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/package.json frontend/package-lock.json
@@ -1855,7 +1855,7 @@ git commit -m "feat(frontend): add zustand and framer-motion dependencies"
 
 The existing config already has the neumorphic color palette. Add box-shadow utilities and board-specific colours.
 
-- [ ] **Step 1: Update tailwind.config.ts**
+- [x] **Step 1: Update tailwind.config.ts**
 
 ```ts
 import type { Config } from "tailwindcss";
@@ -1893,7 +1893,7 @@ const config: Config = {
 export default config;
 ```
 
-- [ ] **Step 2: Verify the build picks up new classes**
+- [x] **Step 2: Verify the build picks up new classes**
 
 ```bash
 cd frontend && npm run build
@@ -1901,7 +1901,7 @@ cd frontend && npm run build
 
 Expected: success.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/tailwind.config.ts
@@ -1914,7 +1914,7 @@ git commit -m "feat(frontend): extend Tailwind with neo-raised/neo-inset shadows
 
 **Files:** Create `frontend/src/lib/types.ts`
 
-- [ ] **Step 1: Create src/lib/ directory and types.ts**
+- [x] **Step 1: Create src/lib/ directory and types.ts**
 
 ```bash
 mkdir -p frontend/src/lib
@@ -1986,7 +1986,7 @@ export interface JoinRoomResponse {
 }
 ```
 
-- [ ] **Step 2: Verify TypeScript compiles**
+- [x] **Step 2: Verify TypeScript compiles**
 
 ```bash
 cd frontend && npm run typecheck
@@ -1994,7 +1994,7 @@ cd frontend && npm run typecheck
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/lib/types.ts
@@ -2007,7 +2007,7 @@ git commit -m "feat(frontend): add shared TypeScript types for game, room, and c
 
 **Files:** Create `frontend/src/stores/gameStore.ts`, `chatStore.ts`, `uiStore.ts`
 
-- [ ] **Step 1: Create stores directory**
+- [x] **Step 1: Create stores directory**
 
 ```bash
 mkdir -p frontend/src/stores
@@ -2100,7 +2100,7 @@ export const useUIStore = create<UIStore>((set) => ({
 }));
 ```
 
-- [ ] **Step 2: Verify TypeScript compilation**
+- [x] **Step 2: Verify TypeScript compilation**
 
 ```bash
 cd frontend && npm run typecheck
@@ -2108,7 +2108,7 @@ cd frontend && npm run typecheck
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/stores/
@@ -2121,7 +2121,7 @@ git commit -m "feat(frontend): add Zustand stores for game, chat, and UI state"
 
 **Files:** Create `frontend/src/components/ui/Button.tsx`, `Input.tsx`, `Card.tsx`
 
-- [ ] **Step 1: Create component directory**
+- [x] **Step 1: Create component directory**
 
 ```bash
 mkdir -p frontend/src/components/ui
@@ -2194,7 +2194,7 @@ export default function Card({ title, children, className = '' }: CardProps) {
 }
 ```
 
-- [ ] **Step 2: Verify TypeScript compilation**
+- [x] **Step 2: Verify TypeScript compilation**
 
 ```bash
 cd frontend && npm run typecheck
@@ -2202,7 +2202,7 @@ cd frontend && npm run typecheck
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/components/ui/
@@ -2215,7 +2215,7 @@ git commit -m "feat(frontend): add neumorphic Button, Input, Card UI components"
 
 **Files:** Modify `frontend/src/app/page.tsx`, update `frontend/src/app/globals.css`
 
-- [ ] **Step 1: Update globals.css to set neumorphic background**
+- [x] **Step 1: Update globals.css to set neumorphic background**
 
 `frontend/src/app/globals.css`:
 ```css
@@ -2229,7 +2229,7 @@ body {
 }
 ```
 
-- [ ] **Step 2: Write the landing page**
+- [x] **Step 2: Write the landing page**
 
 `frontend/src/app/page.tsx`:
 ```tsx
@@ -2359,7 +2359,7 @@ export default function HomePage() {
 }
 ```
 
-- [ ] **Step 3: Verify the build**
+- [x] **Step 3: Verify the build**
 
 ```bash
 cd frontend && npm run build
@@ -2367,7 +2367,7 @@ cd frontend && npm run build
 
 Expected: build succeeds, no TypeScript errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/src/app/page.tsx frontend/src/app/globals.css
@@ -2380,13 +2380,13 @@ git commit -m "feat(frontend): add landing page with create-room and join-by-cod
 
 **Files:** Create `frontend/src/app/room/[code]/page.tsx`
 
-- [ ] **Step 1: Create the route directory**
+- [x] **Step 1: Create the route directory**
 
 ```bash
 mkdir -p "frontend/src/app/room/[code]"
 ```
 
-- [ ] **Step 2: Write the waiting page**
+- [x] **Step 2: Write the waiting page**
 
 `frontend/src/app/room/[code]/page.tsx`:
 ```tsx
@@ -2479,7 +2479,7 @@ export default function RoomPage() {
 }
 ```
 
-- [ ] **Step 3: Verify the build**
+- [x] **Step 3: Verify the build**
 
 ```bash
 cd frontend && npm run build
@@ -2487,7 +2487,7 @@ cd frontend && npm run build
 
 Expected: success, no TypeScript errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add "frontend/src/app/room/"
@@ -2502,7 +2502,7 @@ git commit -m "feat(frontend): add room waiting page with 2s polling and copy-li
 
 **Files:** Modify `docker-compose.yml`, create `frontend/Dockerfile`
 
-- [ ] **Step 1: Write frontend/Dockerfile**
+- [x] **Step 1: Write frontend/Dockerfile**
 
 `frontend/Dockerfile`:
 ```dockerfile
@@ -2523,7 +2523,7 @@ EXPOSE 3000
 CMD ["node", "server.js"]
 ```
 
-- [ ] **Step 2: Enable Next.js standalone output**
+- [x] **Step 2: Enable Next.js standalone output**
 
 Add `output: 'standalone'` to `frontend/next.config.js` (create the file if it doesn't exist):
 
@@ -2536,7 +2536,7 @@ const nextConfig = {
 module.exports = nextConfig;
 ```
 
-- [ ] **Step 3: Update docker-compose.yml**
+- [x] **Step 3: Update docker-compose.yml**
 
 ```yaml
 services:
@@ -2585,7 +2585,7 @@ volumes:
   postgres_data:
 ```
 
-- [ ] **Step 4: Verify docker compose config is valid**
+- [x] **Step 4: Verify docker compose config is valid**
 
 ```bash
 docker compose config --quiet
@@ -2593,7 +2593,7 @@ docker compose config --quiet
 
 Expected: no output (valid config).
 
-- [ ] **Step 5: Smoke test — start DB + backend locally**
+- [x] **Step 5: Smoke test — start DB + backend locally**
 
 ```bash
 # Terminal 1: start postgres
@@ -2625,7 +2625,7 @@ Expected: `{"id":"...","code":"XXXXXXXX","url":"/game/XXXXXXXX","sessionToken":"
 docker compose down
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add docker-compose.yml frontend/Dockerfile frontend/next.config.js
@@ -2636,14 +2636,14 @@ git commit -m "feat(infra): add backend service to docker-compose, frontend Dock
 
 ## Phase 2 Complete
 
-- [ ] **Tag the milestone**
+- [x] **Tag the milestone**
 
 ```bash
 git tag phase-2-db-api-frontend
 git push origin master --tags
 ```
 
-- [ ] **Run all unit tests (no integration)**
+- [x] **Run all unit tests (no integration)**
 
 ```bash
 cd backend && go test ./...
@@ -2652,7 +2652,7 @@ cd frontend && npm run typecheck && npm run build
 
 Expected: all green.
 
-- [ ] **Run integration tests** (requires Docker)
+- [x] **Run integration tests** (requires Docker)
 
 ```bash
 cd backend && go test -tags integration -timeout 180s ./...
