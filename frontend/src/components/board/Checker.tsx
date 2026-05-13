@@ -12,74 +12,30 @@ interface CheckerProps {
 }
 
 export default function Checker({ color, cx, cy, isSelected, onClick }: CheckerProps) {
-  const gradientId = `checker-fill-${color}-${Math.round(cx)}-${Math.round(cy)}`;
-  const rimGradientId = `checker-rim-${color}-${Math.round(cx)}-${Math.round(cy)}`;
-  const fillStart = color === 'white' ? '#fffdf5' : '#4a4a4a';
-  const fillMid = color === 'white' ? '#ece2c8' : '#262626';
-  const fillEnd = color === 'white' ? '#b8aa8b' : '#070707';
-  const rimStart = color === 'white' ? '#fff8df' : '#5a5a5a';
-  const rimEnd = color === 'white' ? '#c4b38f' : '#111111';
-  const stroke = isSelected ? '#f4d35e' : color === 'white' ? '#d8cfbb' : '#111111';
-  const shadow = color === 'white'
-    ? 'drop-shadow(2px 3px 3px rgba(30, 20, 10, 0.35))'
-    : 'drop-shadow(2px 3px 3px rgba(0, 0, 0, 0.45))';
+  const isWhite = color === 'white';
+  const shadowOpacity = isWhite ? 0.15 : 0.3;
+  const outerFill = isWhite ? '#f8f8f8' : '#1a1a1a';
+  const outerStroke = '#333';
+  const midFill = isWhite ? '#ffffff' : '#2a2a2a';
+  const midStroke = isWhite ? '#e0e0e0' : '#111';
+  const coreFill = isWhite ? '#f0f0f0' : '#1f1f1f';
+  const coreStroke = isWhite ? '#555' : '#444';
+  const selectedStroke = isSelected ? '#facc15' : outerStroke;
+  const cursor = onClick ? 'pointer' : 'default';
 
   return (
     <motion.g
       layoutId={`checker-${color}-${cx}-${cy}`}
-      style={{
-        filter: shadow,
-        cursor: onClick ? 'pointer' : 'default',
-        transformOrigin: `${cx}px ${cy}px`,
-      }}
+      style={{ cursor, transformOrigin: `${cx}px ${cy}px` }}
       onClick={onClick}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       whileHover={onClick ? { scale: 1.08 } : undefined}
       whileTap={onClick ? { scale: 0.95 } : undefined}
     >
-      <defs>
-        <radialGradient id={gradientId} cx="34%" cy="28%" r="72%">
-          <stop offset="0%" stopColor={fillStart} />
-          <stop offset="58%" stopColor={fillMid} />
-          <stop offset="100%" stopColor={fillEnd} />
-        </radialGradient>
-        <linearGradient id={rimGradientId} x1={cx - 22} y1={cy - 22} x2={cx + 22} y2={cy + 22} gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={rimStart} />
-          <stop offset="100%" stopColor={rimEnd} />
-        </linearGradient>
-      </defs>
-      <circle
-        cx={cx}
-        cy={cy}
-        r={22}
-        fill={`url(#${rimGradientId})`}
-        stroke={stroke}
-        strokeWidth={isSelected ? 4 : 1.5}
-      />
-      <circle cx={cx} cy={cy} r={17.5} fill={`url(#${gradientId})`} opacity={0.98} />
-      <circle
-        cx={cx}
-        cy={cy}
-        r={10.5}
-        fill="none"
-        stroke={color === 'white' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.16)'}
-        strokeWidth={2}
-      />
-      <ellipse
-        cx={cx - 6}
-        cy={cy - 7}
-        rx={7}
-        ry={4}
-        fill={color === 'white' ? 'rgba(255,255,255,0.74)' : 'rgba(255,255,255,0.2)'}
-      />
-      <circle
-        cx={cx + 6}
-        cy={cy + 7}
-        r={12}
-        fill="none"
-        stroke={color === 'white' ? 'rgba(84,61,33,0.16)' : 'rgba(0,0,0,0.45)'}
-        strokeWidth={3}
-      />
+      <circle opacity={shadowOpacity} fill="#000000" r={18} cy={cy + 2.5} cx={cx} />
+      <circle pointerEvents="none" strokeWidth={isSelected ? 4 : 3} stroke={selectedStroke} fill={outerFill} r={18} cy={cy} cx={cx} />
+      <circle pointerEvents="none" strokeWidth={2.3} stroke={midStroke} fill={midFill} r={13.2} cy={cy} cx={cx} />
+      <circle pointerEvents="none" strokeWidth={2.6} stroke={coreStroke} fill={coreFill} r={8.2} cy={cy} cx={cx} />
     </motion.g>
   );
 }

@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 body {
-  background-color: #e0e5ec;
+  background: #07090f;
   min-height: 100vh;
+}
+
+.game-scene-bg {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(194, 138, 88, 0.12), transparent 28%),
+    radial-gradient(circle at 18% 34%, rgba(80, 98, 255, 0.10), transparent 30%),
+    radial-gradient(circle at 78% 72%, rgba(194, 138, 88, 0.10), transparent 32%),
+    linear-gradient(135deg, #07090f 0%, #111722 52%, #06070b 100%);
 }

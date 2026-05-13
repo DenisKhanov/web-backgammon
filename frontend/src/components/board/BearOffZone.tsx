@@ -10,7 +10,6 @@ interface BearOffZoneProps {
 }
 
 export default function BearOffZone({ color, count, x, y, isTarget = false, onClick }: BearOffZoneProps) {
-  const fill = color === 'white' ? '#f0f0f0' : '#3a3a3a';
   const text = color === 'white' ? '#3a3a3a' : '#f0f0f0';
   return (
     <g
@@ -18,8 +17,17 @@ export default function BearOffZone({ color, count, x, y, isTarget = false, onCl
       onClick={onClick}
       className={onClick ? 'cursor-pointer' : undefined}
     >
-      <rect x={x} y={y} width={40} height={80} rx={6} fill={fill} opacity={0.3}
-        stroke="#a3b1c6" strokeWidth={1} />
+      <rect
+        x={x}
+        y={y}
+        width={40}
+        height={80}
+        rx={10}
+        fill={color === 'white' ? '#f8f8f8' : '#111'}
+        opacity={isTarget ? 0.42 : 0.18}
+        stroke={isTarget ? '#facc15' : '#6f4a31'}
+        strokeWidth={isTarget ? 3 : 1.5}
+      />
       {isTarget && (
         <rect
           data-testid="valid-bear-off-target"

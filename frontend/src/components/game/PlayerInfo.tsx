@@ -13,13 +13,13 @@ interface PlayerInfoProps {
 export default function PlayerInfo({ player, isCurrentTurn, isMe, timeLeft }: PlayerInfoProps) {
   const dotColor = player.color === 'white' ? 'bg-checker-white' : 'bg-checker-black';
   return (
-    <div className={`p-3 rounded-xl shadow-neo-sm bg-neo-bg flex flex-col gap-2
-      ${isCurrentTurn ? 'ring-2 ring-neo-accent' : ''}`}>
+    <div className={`min-w-36 rounded-2xl border px-4 py-3 bg-[#171b27]/85 shadow-lg flex flex-col gap-2
+      ${isCurrentTurn ? 'ring-2 ring-[#c28a58] border-[#c28a58] shadow-[0_0_18px_rgba(194,138,88,0.28)]' : 'border-white/10'}`}>
       <div className="flex items-center gap-2">
         <span className={`w-4 h-4 rounded-full inline-block ${dotColor} shadow-neo-sm`} />
-        <span className="font-semibold text-gray-700 truncate max-w-[120px]">
+        <span className="font-semibold text-white truncate max-w-[120px]">
           {player.name}
-          {isMe && <span className="text-xs text-neo-accent ml-1">(вы)</span>}
+          {isMe && <span className="text-xs text-[#c28a58] ml-1">(вы)</span>}
         </span>
         {!player.connected && (
           <span className="ml-auto text-xs text-amber-500">отключён</span>

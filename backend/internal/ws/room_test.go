@@ -66,7 +66,7 @@ func TestRoomBuildGameStateIncludesLargerDieWhenOnlyOneMoveUsable(t *testing.T) 
 	assert.Equal(t, []MovePayload{{From: 14, To: 9, Die: 5}}, state.LegalMoves)
 }
 
-func TestRoomBuildGameStateIncludesCompoundMoveTargets(t *testing.T) {
+func TestRoomBuildGameStateIncludesOnlyImmediatelyPlayableMoves(t *testing.T) {
 	b := &game.Board{}
 	b.Points[24] = game.Point{Owner: game.White, Checkers: 1}
 
@@ -83,15 +83,9 @@ func TestRoomBuildGameStateIncludesCompoundMoveTargets(t *testing.T) {
 
 	assert.Contains(t, state.LegalMoves, MovePayload{From: 24, To: 23, Die: 1})
 	assert.Contains(t, state.LegalMoves, MovePayload{From: 24, To: 19, Die: 5})
-	assert.Contains(t, state.LegalMoves, MovePayload{
-		From: 24,
-		To:   18,
-		Die:  6,
-		Steps: []MovePayload{
-			{From: 24, To: 23, Die: 1},
-			{From: 23, To: 18, Die: 5},
-		},
-	})
+	for _, move := range state.LegalMoves {
+		assert.False(t, move.From == 24 && move.To == 18, "compound targets are not immediately playable moves")
+	}
 }
 
 func TestRoomHandleMoveAdvancesTurnAfterFullMove(t *testing.T) {
