@@ -264,12 +264,25 @@ func (r *Room) handleMove(c *Client, raw json.RawMessage) {
 		Die:           p.Die,
 		RemainingDice: r.g.RemainingDice,
 	}))
-	r.broadcastGameState()
-	r.persistState()
 
 	if r.g.Phase == game.PhaseFinished {
 		r.handleGameOver()
+		return
 	}
+
+	if r.shouldAutoEndTurn() {
+		if err := r.g.EndTurn(); err != nil {
+			c.sendMsg(mustEncode("move_error", MoveErrorPayload{Reason: err.Error()}))
+			r.broadcastGameState()
+			r.persistState()
+			return
+		}
+		r.advanceTurn()
+		return
+	}
+
+	r.broadcastGameState()
+	r.persistState()
 }
 
 func (r *Room) handleEndTurn(c *Client) {
@@ -302,6 +315,22 @@ func (r *Room) advanceTurn() {
 	}))
 	r.broadcastGameState()
 	r.persistState()
+}
+
+func (r *Room) shouldAutoEndTurn() bool {
+	if r.g == nil || r.g.Phase == game.PhaseFinished {
+		return false
+	}
+	if len(r.g.RemainingDice) == 0 {
+		return true
+	}
+	sequences := r.g.AvailableMoves()
+	for _, seq := range sequences {
+		if len(seq) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Room) handleChat(c *Client, raw json.RawMessage) {

@@ -65,8 +65,8 @@ func isValidBearOff(b *Board, c Color, m Move) (bool, error) {
 	return false, fmt.Errorf("invalid bear-off attempt from %d with die %d", m.From, m.Die)
 }
 
-// wouldCreateGlukhoiZabor моделирует ход и проверяет, образуется ли непрерывный
-// ряд из 6+ пунктов цвета c с шашкой соперника впереди этого ряда.
+// wouldCreateGlukhoiZabor моделирует ход и проверяет, образуется ли запрещенный
+// ряд из 6+ пунктов цвета c без шашки соперника впереди этого ряда.
 func wouldCreateGlukhoiZabor(b *Board, c Color, m Move) bool {
 	sim := *b
 	sim.Points[m.From] = Point{Owner: c, Checkers: b.Points[m.From].Checkers - 1}
@@ -103,7 +103,7 @@ func wouldCreateGlukhoiZabor(b *Board, c Color, m Move) bool {
 				runStart = p
 			}
 			run++
-			if run >= 6 && opponentAhead(runStart, p) {
+			if run >= 6 && !opponentAhead(runStart, p) {
 				return true
 			}
 		} else {

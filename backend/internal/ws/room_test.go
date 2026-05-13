@@ -94,6 +94,25 @@ func TestRoomBuildGameStateIncludesCompoundMoveTargets(t *testing.T) {
 	})
 }
 
+func TestRoomHandleMoveAdvancesTurnAfterFullMove(t *testing.T) {
+	r := newRoom("TESTROOM", nil)
+	r.g = game.NewGame()
+	r.g.Phase = game.PhasePlaying
+	r.g.CurrentTurn = game.White
+	r.g.Dice = []int{6}
+	r.g.RemainingDice = []int{6}
+
+	c := &Client{color: game.White}
+	raw, err := json.Marshal(MovePayload{From: 24, To: 18, Die: 6})
+	require.NoError(t, err)
+
+	r.handleMove(c, raw)
+
+	assert.Equal(t, game.Black, r.g.CurrentTurn)
+	assert.Len(t, r.g.Dice, 2)
+	assert.NotEmpty(t, r.g.RemainingDice)
+}
+
 func TestGameFromRecordRestoresPersistedState(t *testing.T) {
 	b := &game.Board{}
 	b.Points[22] = game.Point{Owner: game.White, Checkers: 1}

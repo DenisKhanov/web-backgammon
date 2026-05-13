@@ -30,6 +30,13 @@ export default function Board({ sendMove }: BoardProps) {
     );
   }, [isMyTurn, legalMoves, selectedChecker]);
 
+  const bearOffMove = useMemo(() => {
+    if (!isMyTurn || selectedChecker === null) return null;
+    return legalMoves.find((move) =>
+      move.from === selectedChecker && (move.to === 0 || move.to === 25)
+    ) ?? null;
+  }, [isMyTurn, legalMoves, selectedChecker]);
+
   const sendLegalMove = useCallback((move: Move) => {
     if (move.steps && move.steps.length > 0) {
       move.steps.forEach(sendMove);
@@ -61,6 +68,12 @@ export default function Board({ sendMove }: BoardProps) {
       }
     }
   }, [board, isMyTurn, myColor, selectedChecker, legalMoves, selectableSources, selectChecker, sendLegalMove]);
+
+  const handleBearOffClick = useCallback((target: 0 | 25) => {
+    if (!bearOffMove || bearOffMove.to !== target) return;
+    sendLegalMove(bearOffMove);
+    selectChecker(null);
+  }, [bearOffMove, selectChecker, sendLegalMove]);
 
   if (!board) {
     return (
@@ -131,8 +144,22 @@ export default function Board({ sendMove }: BoardProps) {
       })}
 
       {/* Bear-off zones */}
-      <BearOffZone color="white" count={board.BorneOff[1]} x={BOARD_W - PADDING - 40} y={BOARD_H / 2 + 20} />
-      <BearOffZone color="black" count={board.BorneOff[2]} x={BOARD_W - PADDING - 40} y={BOARD_H / 2 - 100} />
+      <BearOffZone
+        color="white"
+        count={board.BorneOff[1]}
+        x={BOARD_W - PADDING - 40}
+        y={BOARD_H / 2 + 20}
+        isTarget={bearOffMove?.to === 0}
+        onClick={bearOffMove?.to === 0 ? () => handleBearOffClick(0) : undefined}
+      />
+      <BearOffZone
+        color="black"
+        count={board.BorneOff[2]}
+        x={BOARD_W - PADDING - 40}
+        y={BOARD_H / 2 - 100}
+        isTarget={bearOffMove?.to === 25}
+        onClick={bearOffMove?.to === 25 ? () => handleBearOffClick(25) : undefined}
+      />
     </svg>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import Checker from './Checker';
-import { BOARD_H, PADDING } from '@/lib/boardUtils';
+import { BOARD_H, BOARD_W, PADDING } from '@/lib/boardUtils';
 import type { Color } from '@/lib/types';
 
 const MAX_VISIBLE = 5;
@@ -46,20 +46,36 @@ export default function CheckerStack({
         );
       })}
       {count > MAX_VISIBLE && (() => {
-        const topCy = isBottom
-          ? BOARD_H - PADDING - radius - (MAX_VISIBLE - 1) * step
-          : PADDING + radius + (MAX_VISIBLE - 1) * step;
+        const badgeX = cx > BOARD_W / 2 ? cx - 26 : cx + 26;
+        const badgeY = isBottom
+          ? BOARD_H - PADDING - radius
+          : PADDING + radius;
+        const badgeFill = color === 'white' ? '#fff8df' : '#202020';
+        const badgeStroke = color === 'white' ? '#c4b38f' : '#575757';
         return (
-          <text
-            x={cx}
-            y={topCy + 6}
-            textAnchor="middle"
-            fontSize={14}
-            fontWeight="bold"
-            fill={color === 'white' ? '#3a3a3a' : '#f0f0f0'}
-          >
-            +{count - MAX_VISIBLE + 1}
-          </text>
+          <g pointerEvents="none">
+            <rect
+              x={badgeX - 15}
+              y={badgeY - 12}
+              width={30}
+              height={24}
+              rx={8}
+              fill={badgeFill}
+              stroke={badgeStroke}
+              strokeWidth={1.5}
+              opacity={0.96}
+            />
+            <text
+              x={badgeX}
+              y={badgeY + 5}
+              textAnchor="middle"
+              fontSize={14}
+              fontWeight="bold"
+              fill={color === 'white' ? '#3a3a3a' : '#f0f0f0'}
+            >
+              {count}
+            </text>
+          </g>
         );
       })()}
     </>
