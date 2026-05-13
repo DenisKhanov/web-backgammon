@@ -457,19 +457,50 @@ func (r *Room) legalMovesPayload() []MovePayload {
 		return nil
 	}
 
-	seen := make(map[MovePayload]bool)
+	type moveKey struct {
+		from int
+		to   int
+		die  int
+	}
+
+	seen := make(map[moveKey]bool)
 	moves := make([]MovePayload, 0)
 	for _, seq := range sequences {
 		if len(seq) == 0 {
 			continue
 		}
-		first := seq[0]
-		payload := MovePayload{From: first.From, To: first.To, Die: first.Die}
-		if seen[payload] {
-			continue
+		origin := seq[0].From
+		totalDie := 0
+		steps := make([]MovePayload, 0, len(seq))
+		chainedToOrigin := true
+		for _, move := range seq {
+			if len(steps) > 0 && move.From != steps[len(steps)-1].To {
+				chainedToOrigin = false
+			}
+			totalDie += move.Die
+			step := MovePayload{From: move.From, To: move.To, Die: move.Die}
+			steps = append(steps, step)
+
+			payload := step
+			if len(steps) > 1 {
+				if !chainedToOrigin {
+					continue
+				}
+				payload = MovePayload{
+					From:  origin,
+					To:    move.To,
+					Die:   totalDie,
+					Steps: append([]MovePayload(nil), steps...),
+				}
+			}
+
+			key := moveKey{from: payload.From, to: payload.To, die: payload.Die}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			moves = append(moves, payload)
 		}
-		seen[payload] = true
-		moves = append(moves, payload)
 	}
 	return moves
 }

@@ -30,6 +30,14 @@ export default function Board({ sendMove }: BoardProps) {
     );
   }, [isMyTurn, legalMoves, selectedChecker]);
 
+  const sendLegalMove = useCallback((move: Move) => {
+    if (move.steps && move.steps.length > 0) {
+      move.steps.forEach(sendMove);
+    } else {
+      sendMove(move);
+    }
+  }, [sendMove]);
+
   const handlePointClick = useCallback((pointIdx: number) => {
     if (!board || !isMyTurn) return;
 
@@ -44,7 +52,7 @@ export default function Board({ sendMove }: BoardProps) {
         candidate.from === selectedChecker && candidate.to === pointIdx
       );
       if (move) {
-        sendMove(move);
+        sendLegalMove(move);
         selectChecker(null);
       } else if (selectableSources.has(pointIdx)) {
         selectChecker(pointIdx);
@@ -52,7 +60,7 @@ export default function Board({ sendMove }: BoardProps) {
         selectChecker(null);
       }
     }
-  }, [board, isMyTurn, myColor, selectedChecker, legalMoves, selectableSources, selectChecker, sendMove]);
+  }, [board, isMyTurn, myColor, selectedChecker, legalMoves, selectableSources, selectChecker, sendLegalMove]);
 
   if (!board) {
     return (

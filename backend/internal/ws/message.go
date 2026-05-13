@@ -29,9 +29,10 @@ func mustEncode(msgType string, payload any) []byte {
 // --- Client → Server payload types ---
 
 type MovePayload struct {
-	From int `json:"from"`
-	To   int `json:"to"`
-	Die  int `json:"die"`
+	From  int           `json:"from"`
+	To    int           `json:"to"`
+	Die   int           `json:"die"`
+	Steps []MovePayload `json:"steps,omitempty"`
 }
 
 type ChatPayload struct {

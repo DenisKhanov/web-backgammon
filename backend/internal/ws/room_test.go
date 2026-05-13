@@ -47,7 +47,7 @@ func TestRoomStartGameIsIdempotent(t *testing.T) {
 	assert.Equal(t, originalRemaining, r.g.RemainingDice)
 }
 
-func TestRoomBuildGameStateIncludesOnlyLegalFirstMovesFromMaximalSequences(t *testing.T) {
+func TestRoomBuildGameStateIncludesLargerDieWhenOnlyOneMoveUsable(t *testing.T) {
 	b := &game.Board{}
 	b.Points[14] = game.Point{Owner: game.White, Checkers: 1}
 	b.Points[6] = game.Point{Owner: game.Black, Checkers: 1}
@@ -64,6 +64,34 @@ func TestRoomBuildGameStateIncludesOnlyLegalFirstMovesFromMaximalSequences(t *te
 	state := r.buildGameState(game.White)
 
 	assert.Equal(t, []MovePayload{{From: 14, To: 9, Die: 5}}, state.LegalMoves)
+}
+
+func TestRoomBuildGameStateIncludesCompoundMoveTargets(t *testing.T) {
+	b := &game.Board{}
+	b.Points[24] = game.Point{Owner: game.White, Checkers: 1}
+
+	r := newRoom("TESTROOM", nil)
+	r.g = &game.Game{
+		Board:         b,
+		CurrentTurn:   game.White,
+		Dice:          []int{1, 5},
+		RemainingDice: []int{1, 5},
+		Phase:         game.PhasePlaying,
+	}
+
+	state := r.buildGameState(game.White)
+
+	assert.Contains(t, state.LegalMoves, MovePayload{From: 24, To: 23, Die: 1})
+	assert.Contains(t, state.LegalMoves, MovePayload{From: 24, To: 19, Die: 5})
+	assert.Contains(t, state.LegalMoves, MovePayload{
+		From: 24,
+		To:   18,
+		Die:  6,
+		Steps: []MovePayload{
+			{From: 24, To: 23, Die: 1},
+			{From: 23, To: 18, Die: 5},
+		},
+	})
 }
 
 func TestGameFromRecordRestoresPersistedState(t *testing.T) {
