@@ -17,7 +17,9 @@ services:
       retries: 5
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      network: ${DOCKER_BUILD_NETWORK:-default}
     container_name: ${COMPOSE_PROJECT_NAME:-backgammon}-backend
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-bg_user}:${POSTGRES_PASSWORD:-bg_pass}@postgres:5432/${POSTGRES_DB:-backgammon}?sslmode=disable
@@ -33,6 +35,7 @@ services:
   frontend:
     build:
       context: ./frontend
+      network: ${DOCKER_BUILD_NETWORK:-default}
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
         NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8080}
