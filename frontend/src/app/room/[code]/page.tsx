@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import type { Room } from '@/lib/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
@@ -14,8 +16,12 @@ export default function RoomPage() {
   const [room, setRoom] = useState<Room | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [joinName, setJoinName] = useState('');
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+
     const poll = async () => {
       try {
         const res = await fetch(`${API_URL}/api/rooms/${code}`, {
@@ -27,7 +33,7 @@ export default function RoomPage() {
         }
         const data: Room = await res.json();
         setRoom(data);
-        if (data.status === 'playing') {
+        if (data.status === 'playing' && data.isParticipant) {
           clearInterval(interval);
           router.push(`/game/${code}`);
         }
@@ -37,9 +43,40 @@ export default function RoomPage() {
     };
 
     poll();
-    const interval = setInterval(poll, 2000);
+    interval = setInterval(poll, 2000);
     return () => clearInterval(interval);
-  }, [code]);
+  }, [code, router]);
+
+  async function handleJoin(e: React.FormEvent) {
+    e.preventDefault();
+    setJoining(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/rooms/${code}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: joinName }),
+      });
+      if (res.status === 410) {
+        setError('Комната заполнена или игра уже началась');
+        return;
+      }
+      if (res.status === 404) {
+        setError('Комната не найдена');
+        return;
+      }
+      if (!res.ok) {
+        setError(await res.text());
+        return;
+      }
+      router.push(`/game/${code}`);
+    } catch {
+      setError('Ошибка соединения');
+    } finally {
+      setJoining(false);
+    }
+  }
 
   async function copyLink() {
     const url = `${window.location.origin}/room/${code}`;
@@ -82,7 +119,30 @@ export default function RoomPage() {
         </Card>
       )}
 
-      {room && room.playerCount < 2 && (
+      {room && room.status === 'waiting' && !room.isParticipant && (
+        <Card title="Войти в комнату">
+          <form onSubmit={handleJoin} className="flex flex-col gap-3">
+            <Input
+              placeholder="Ваше имя (до 40 символов)"
+              value={joinName}
+              onChange={(e) => setJoinName(e.target.value)}
+              maxLength={40}
+              required
+            />
+            <Button type="submit" disabled={joining}>
+              {joining ? 'Входим...' : 'Войти в комнату'}
+            </Button>
+          </form>
+        </Card>
+      )}
+
+      {room && room.status === 'playing' && !room.isParticipant && (
+        <p className="text-sm text-gray-500 text-center">
+          Игра уже началась.
+        </p>
+      )}
+
+      {room && room.isParticipant && room.playerCount < 2 && (
         <p className="text-sm text-gray-500 animate-pulse">
           Ожидаем второго игрока...
         </p>

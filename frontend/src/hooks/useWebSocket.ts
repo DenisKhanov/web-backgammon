@@ -21,9 +21,11 @@ export function useWebSocket(roomCode: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const backoffRef = useRef(1000);
   const mountedRef = useRef(true);
+  const generationRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const connect = useCallback(() => {
-    if (!mountedRef.current) return;
+  const connect = useCallback((generation: number) => {
+    if (!mountedRef.current || generation !== generationRef.current) return;
 
     const url = `${WS_URL}/ws/${roomCode}`;
     const ws = new WebSocket(url);
@@ -34,6 +36,7 @@ export function useWebSocket(roomCode: string) {
     };
 
     ws.onmessage = (event) => {
+      if (wsRef.current !== ws || generation !== generationRef.current) return;
       let msg: { type: string; payload?: unknown };
       try {
         msg = JSON.parse(event.data);
@@ -44,10 +47,13 @@ export function useWebSocket(roomCode: string) {
     };
 
     ws.onclose = () => {
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || generation !== generationRef.current || wsRef.current !== ws) {
+        return;
+      }
+      wsRef.current = null;
       const delay = Math.min(backoffRef.current, MAX_BACKOFF_MS);
       backoffRef.current = Math.min(backoffRef.current * 2, MAX_BACKOFF_MS);
-      setTimeout(connect, delay);
+      retryTimerRef.current = setTimeout(() => connect(generation), delay);
     };
 
     ws.onerror = () => {
@@ -68,8 +74,10 @@ export function useWebSocket(roomCode: string) {
           turn: p.currentTurn || null,
           dice: p.dice,
           remainingDice: p.remainingDice,
+          legalMoves: p.legalMoves ?? [],
           timeLeft: p.timeLeft,
           players: p.players,
+          selectedChecker: null,
           board: {
             Points: p.board,
             BorneOff: p.borneOff,
@@ -89,7 +97,14 @@ export function useWebSocket(roomCode: string) {
       }
       case 'turn_changed': {
         const p = payload as TurnChangedPayload;
-        setGameState({ turn: p.player, timeLeft: p.timeLeft, remainingDice: [], dice: [] });
+        setGameState({
+          turn: p.player,
+          timeLeft: p.timeLeft,
+          remainingDice: [],
+          dice: [],
+          legalMoves: [],
+          selectedChecker: null,
+        });
         break;
       }
       case 'game_over': {
@@ -133,10 +148,19 @@ export function useWebSocket(roomCode: string) {
 
   useEffect(() => {
     mountedRef.current = true;
-    connect();
+    const generation = generationRef.current + 1;
+    generationRef.current = generation;
+    connect(generation);
     return () => {
+      generationRef.current += 1;
       mountedRef.current = false;
-      wsRef.current?.close();
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+      const ws = wsRef.current;
+      wsRef.current = null;
+      ws?.close();
       useGameStore.getState().reset();
     };
   }, [connect]);

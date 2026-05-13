@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { pointX, isBottomPoint, BOARD_W, BOARD_H, POINT_W, PADDING, BAR_W } from '@/lib/boardUtils';
 import Point from './Point';
@@ -13,32 +13,46 @@ interface BoardProps {
 }
 
 export default function Board({ sendMove }: BoardProps) {
-  const { board, myColor, selectedChecker, remainingDice, turn, selectChecker } = useGameStore();
+  const { board, myColor, selectedChecker, legalMoves = [], turn, selectChecker } = useGameStore();
+  const isMyTurn = turn === myColor;
+
+  const selectableSources = useMemo(() => {
+    if (!isMyTurn) return new Set<number>();
+    return new Set(legalMoves.map((move) => move.from).filter((from) => from >= 1 && from <= 24));
+  }, [isMyTurn, legalMoves]);
+
+  const targetPoints = useMemo(() => {
+    if (!isMyTurn || selectedChecker === null) return new Set<number>();
+    return new Set(
+      legalMoves
+        .filter((move) => move.from === selectedChecker && move.to >= 1 && move.to <= 24)
+        .map((move) => move.to),
+    );
+  }, [isMyTurn, legalMoves, selectedChecker]);
 
   const handlePointClick = useCallback((pointIdx: number) => {
-    if (!board || turn !== myColor) return;
+    if (!board || !isMyTurn) return;
 
     if (selectedChecker === null) {
-      // Select checker
       const pt = board.Points[pointIdx];
       const ownerColor = pt.owner === 1 ? 'white' : pt.owner === 2 ? 'black' : null;
-      if (ownerColor === myColor && pt.checkers > 0) {
+      if (ownerColor === myColor && pt.checkers > 0 && selectableSources.has(pointIdx)) {
         selectChecker(pointIdx);
       }
     } else {
-      // Try to move
-      const die = remainingDice.find(d => {
-        const dir = myColor === 'white' ? -1 : 1;
-        return selectedChecker + dir * d === pointIdx;
-      });
-      if (die !== undefined) {
-        sendMove({ from: selectedChecker, to: pointIdx, die });
+      const move = legalMoves.find((candidate) =>
+        candidate.from === selectedChecker && candidate.to === pointIdx
+      );
+      if (move) {
+        sendMove(move);
         selectChecker(null);
+      } else if (selectableSources.has(pointIdx)) {
+        selectChecker(pointIdx);
       } else {
         selectChecker(null);
       }
     }
-  }, [board, myColor, selectedChecker, remainingDice, turn, selectChecker, sendMove]);
+  }, [board, isMyTurn, myColor, selectedChecker, legalMoves, selectableSources, selectChecker, sendMove]);
 
   if (!board) {
     return (
@@ -52,22 +66,27 @@ export default function Board({ sendMove }: BoardProps) {
 
   return (
     <svg
+      data-testid="game-board"
+      data-my-color={myColor ?? ''}
       viewBox={`0 0 ${BOARD_W} ${BOARD_H}`}
       preserveAspectRatio="xMidYMid meet"
-      className="w-full max-w-2xl"
+      className="w-full max-w-2xl drop-shadow-xl"
       style={{ touchAction: 'none' }}
     >
       {/* Board background */}
-      <rect width={BOARD_W} height={BOARD_H} fill="#2d5016" rx={12} />
+      <rect width={BOARD_W} height={BOARD_H} fill="#6f4726" rx={18} />
+      <rect x={14} y={14} width={BOARD_W - 28} height={BOARD_H - 28} fill="#274f22" rx={12} />
+      <rect x={PADDING} y={PADDING} width={BOARD_W - PADDING * 2} height={BOARD_H - PADDING * 2} fill="#2f641f" rx={8} />
 
       {/* Center bar */}
       <rect
         x={(BOARD_W - BAR_W) / 2}
-        y={0}
+        y={PADDING}
         width={BAR_W}
-        height={BOARD_H}
-        fill="#1a3a0a"
+        height={BOARD_H - PADDING * 2}
+        fill="#1f3f18"
       />
+      <rect x={0} y={0} width={BOARD_W} height={BOARD_H} fill="none" stroke="#3d2514" strokeWidth={12} rx={18} />
 
       {/* Points 1–24 */}
       {Array.from({ length: 24 }, (_, i) => {
@@ -77,6 +96,7 @@ export default function Board({ sendMove }: BoardProps) {
         const x = cx - POINT_W / 2;
         const pt = points[p];
         const hasMyChecker = pt && ((pt.owner === 1 && myColor === 'white') || (pt.owner === 2 && myColor === 'black'));
+        const canSelectPoint = hasMyChecker && isMyTurn && selectableSources.has(p);
 
         return (
           <Point
@@ -84,6 +104,8 @@ export default function Board({ sendMove }: BoardProps) {
             index={p}
             isBottom={bottom}
             x={x}
+            checkers={pt?.checkers ?? 0}
+            isValidTarget={targetPoints.has(p)}
             onClick={() => handlePointClick(p)}
           >
             {pt && pt.checkers > 0 && (
@@ -92,7 +114,8 @@ export default function Board({ sendMove }: BoardProps) {
                 count={pt.checkers}
                 cx={cx}
                 isBottom={bottom}
-                onCheckerClick={hasMyChecker ? () => selectChecker(p) : undefined}
+                isSelected={isMyTurn && selectedChecker === p}
+                onCheckerClick={canSelectPoint ? () => selectChecker(p) : undefined}
               />
             )}
           </Point>

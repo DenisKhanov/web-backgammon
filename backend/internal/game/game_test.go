@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewGame_InitialState(t *testing.T) {
@@ -62,6 +63,55 @@ func TestGame_ApplyMove_HappyPath(t *testing.T) {
 	assert.Equal(t, 14, g.Board.Points[24].Checkers)
 	assert.Equal(t, 1, g.Board.Points[19].Checkers)
 	assert.Equal(t, 1, g.MoveCount)
+}
+
+func TestGame_ApplyMove_RejectsSecondCheckerFromStartOnDistinctDice(t *testing.T) {
+	g := NewGame()
+	g.Phase = PhasePlaying
+	g.CurrentTurn = White
+	g.Dice = []int{2, 3}
+	g.RemainingDice = []int{2, 3}
+
+	require.NoError(t, g.ApplyMove(Move{From: 24, To: 22, Die: 2}))
+
+	err := g.ApplyMove(Move{From: 24, To: 21, Die: 3})
+
+	assert.Error(t, err)
+	assert.Equal(t, []int{3}, g.RemainingDice)
+	assert.Equal(t, 14, g.Board.Points[24].Checkers)
+}
+
+func TestGame_ApplyMove_AllowsSecondCheckerFromStartOnFirstTurnDouble(t *testing.T) {
+	g := NewGame()
+	g.Phase = PhasePlaying
+	g.CurrentTurn = White
+	g.Dice = []int{6, 6}
+	g.RemainingDice = []int{6, 6, 6, 6}
+
+	require.NoError(t, g.ApplyMove(Move{From: 24, To: 18, Die: 6}))
+	err := g.ApplyMove(Move{From: 24, To: 18, Die: 6})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 13, g.Board.Points[24].Checkers)
+	assert.Equal(t, 2, g.Board.Points[18].Checkers)
+}
+
+func TestGame_AvailableMoves_AfterStartMoveExcludesSecondCheckerFromStart(t *testing.T) {
+	g := NewGame()
+	g.Phase = PhasePlaying
+	g.CurrentTurn = White
+	g.Dice = []int{2, 3}
+	g.RemainingDice = []int{2, 3}
+
+	require.NoError(t, g.ApplyMove(Move{From: 24, To: 22, Die: 2}))
+
+	sequences := g.AvailableMoves()
+
+	for _, seq := range sequences {
+		for _, move := range seq {
+			assert.NotEqual(t, 24, move.From)
+		}
+	}
 }
 
 func TestGame_ApplyMove_InvalidMoveRejected(t *testing.T) {

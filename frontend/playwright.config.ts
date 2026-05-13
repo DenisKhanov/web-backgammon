@@ -1,17 +1,23 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const baseURL = 'http://localhost:3000';
+const webServerURL = 'http://127.0.0.1:3000';
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
   retries: 1,
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL,
     trace: 'on-first-retry',
   },
   projects: [
     {
       name: 'Desktop Chrome',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(process.env.CI ? {} : { channel: 'chrome' as const }),
+      },
     },
     {
       name: 'Mobile Safari',
@@ -20,7 +26,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3000',
+    url: webServerURL,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },

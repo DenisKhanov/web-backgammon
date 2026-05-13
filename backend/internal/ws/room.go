@@ -10,6 +10,7 @@ import (
 
 	"nhooyr.io/websocket"
 
+	"github.com/denis/web-backgammon/internal/db"
 	"github.com/denis/web-backgammon/internal/game"
 	"github.com/microcosm-cc/bluemonday"
 )
@@ -38,9 +39,9 @@ type Room struct {
 	dbRoomID string
 
 	// Timers
-	turnTimer    *time.Timer
+	turnTimer     *time.Timer
 	turnStartedAt time.Time
-	graceTimers  [2]*time.Timer
+	graceTimers   [2]*time.Timer
 }
 
 func newRoom(code string, hub *Hub) *Room {
@@ -51,6 +52,26 @@ func newRoom(code string, hub *Hub) *Room {
 func (r *Room) addClient(c *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	colorBySlot := [2]game.Color{game.White, game.Black}
+
+	for i, token := range r.tokens {
+		if token == c.sessionToken {
+			previous := r.clients[i]
+			r.clients[i] = c
+			r.names[i] = c.name
+			c.color = colorBySlot[i]
+			if previous != nil && previous != c {
+				go previous.conn.Close(websocket.StatusNormalClosure, "replaced")
+			}
+			if r.g != nil {
+				c.sendMsg(mustEncode("game_state", r.buildGameState(c.color)))
+			} else if r.clients[0] != nil && r.clients[1] != nil {
+				go r.startGame()
+			}
+			return
+		}
+	}
 
 	// Assign to first free slot (White=0, Black=1).
 	slot := -1
@@ -70,7 +91,6 @@ func (r *Room) addClient(c *Client) {
 	r.names[slot] = c.name
 	r.tokens[slot] = c.sessionToken
 
-	colorBySlot := [2]game.Color{game.White, game.Black}
 	c.color = colorBySlot[slot]
 
 	if r.clients[0] != nil && r.clients[1] != nil {
@@ -144,6 +164,16 @@ func (r *Room) startGame() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if r.g != nil {
+		return
+	}
+
+	ctx := context.Background()
+	if r.restorePersistedGame(ctx) {
+		r.broadcastGameState()
+		return
+	}
+
 	r.g = game.NewGame()
 	dice := game.NewRandomDice(time.Now().UnixNano())
 	if err := r.g.RollFirst(dice); err != nil {
@@ -153,12 +183,12 @@ func (r *Room) startGame() {
 
 	// Persist initial game record.
 	boardJSON, _ := json.Marshal(r.g.Board)
-	ctx := context.Background()
 	gr, err := r.hub.repos.Games.Create(ctx, r.dbRoomID, boardJSON)
 	if err != nil {
 		slog.Error("create game record", "err", err)
 	} else {
 		r.gameID = gr.ID
+		r.persistState()
 	}
 
 	dicePayload := DiceRolledPayload{
@@ -168,7 +198,27 @@ func (r *Room) startGame() {
 	}
 	r.broadcastAll(mustEncode("dice_rolled", dicePayload))
 	r.broadcastGameState()
-	r.startTurnTimer()
+}
+
+func (r *Room) restorePersistedGame(ctx context.Context) bool {
+	if r.hub == nil || r.dbRoomID == "" {
+		return false
+	}
+
+	record, err := r.hub.repos.Games.FindByRoomID(ctx, r.dbRoomID)
+	if err != nil {
+		return false
+	}
+
+	g, err := gameFromRecord(record)
+	if err != nil {
+		slog.Error("restore game record", "err", err)
+		return false
+	}
+
+	r.g = g
+	r.gameID = record.ID
+	return true
 }
 
 func (r *Room) handleMessage(c *Client, env Message) {
@@ -252,7 +302,6 @@ func (r *Room) advanceTurn() {
 	}))
 	r.broadcastGameState()
 	r.persistState()
-	r.startTurnTimer()
 }
 
 func (r *Room) handleChat(c *Client, raw json.RawMessage) {
@@ -305,12 +354,7 @@ func (r *Room) stopTurnTimer() {
 }
 
 func (r *Room) handleTurnTimeout() {
-	if r.g == nil || r.g.Phase == game.PhaseFinished {
-		return
-	}
-	// Force end turn (ignore error — there might be usable moves, but timeout overrides).
-	_ = r.g.EndTurn()
-	r.advanceTurn()
+	// Turns are player-driven. Dice must not reroll just because a client stays idle.
 }
 
 func (r *Room) handleGraceTimeout(slot int) {
@@ -395,11 +439,39 @@ func (r *Room) buildGameState(forColor game.Color) GameStatePayload {
 		BorneOff:      r.g.Board.BorneOff,
 		Dice:          r.g.Dice,
 		RemainingDice: r.g.RemainingDice,
+		LegalMoves:    r.legalMovesPayload(),
 		MoveCount:     r.g.MoveCount,
 		MyColor:       colorName(forColor),
 		Players:       players,
 		TimeLeft:      timeLeft,
 	}
+}
+
+func (r *Room) legalMovesPayload() []MovePayload {
+	if r.g == nil {
+		return nil
+	}
+
+	sequences := r.g.AvailableMoves()
+	if len(sequences) == 0 {
+		return nil
+	}
+
+	seen := make(map[MovePayload]bool)
+	moves := make([]MovePayload, 0)
+	for _, seq := range sequences {
+		if len(seq) == 0 {
+			continue
+		}
+		first := seq[0]
+		payload := MovePayload{From: first.From, To: first.To, Die: first.Die}
+		if seen[payload] {
+			continue
+		}
+		seen[payload] = true
+		moves = append(moves, payload)
+	}
+	return moves
 }
 
 func (r *Room) broadcastGameState() {
@@ -460,4 +532,54 @@ func phaseName(p game.Phase) string {
 		return n
 	}
 	return fmt.Sprintf("phase_%d", p)
+}
+
+func gameFromRecord(record *db.GameRecord) (*game.Game, error) {
+	var board game.Board
+	if err := json.Unmarshal(record.BoardState, &board); err != nil {
+		return nil, fmt.Errorf("decode board: %w", err)
+	}
+
+	g := &game.Game{
+		Board:         &board,
+		CurrentTurn:   colorFromNamePtr(record.CurrentTurn),
+		Dice:          append([]int(nil), record.Dice...),
+		RemainingDice: append([]int(nil), record.RemainingDice...),
+		Phase:         phaseFromName(record.Phase),
+		Winner:        colorFromNamePtr(record.Winner),
+		IsMars:        record.IsMars,
+		MoveCount:     record.MoveCount,
+	}
+	return g, nil
+}
+
+func colorFromNamePtr(name *string) game.Color {
+	if name == nil {
+		return game.NoColor
+	}
+	switch *name {
+	case "white":
+		return game.White
+	case "black":
+		return game.Black
+	default:
+		return game.NoColor
+	}
+}
+
+func phaseFromName(name string) game.Phase {
+	switch name {
+	case "waiting":
+		return game.PhaseWaiting
+	case "rolling_first":
+		return game.PhaseRollingFirst
+	case "playing":
+		return game.PhasePlaying
+	case "bearing_off":
+		return game.PhaseBearingOff
+	case "finished":
+		return game.PhaseFinished
+	default:
+		return game.PhaseWaiting
+	}
 }

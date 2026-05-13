@@ -3,6 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"log/slog"
+	"net/url"
 	"sync"
 
 	"github.com/denis/web-backgammon/internal/db"
@@ -29,8 +30,21 @@ func NewHub(repos DBRepos, origins []string) *Hub {
 		rooms:    make(map[string]*Room),
 		sessions: make(map[string]*Client),
 		repos:    repos,
-		origins:  origins,
+		origins:  originHostPatterns(origins),
 	}
+}
+
+func originHostPatterns(origins []string) []string {
+	patterns := make([]string, 0, len(origins))
+	for _, origin := range origins {
+		u, err := url.Parse(origin)
+		if err == nil && u.Host != "" {
+			patterns = append(patterns, u.Host)
+			continue
+		}
+		patterns = append(patterns, origin)
+	}
+	return patterns
 }
 
 // register attaches a new client to its room, creating the Room if this is

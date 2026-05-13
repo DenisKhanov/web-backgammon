@@ -31,10 +31,11 @@ type joinRoomResponse struct {
 }
 
 type roomInfoResponse struct {
-	ID          string `json:"id"`
-	Code        string `json:"code"`
-	Status      string `json:"status"`
-	PlayerCount int    `json:"playerCount"`
+	ID            string `json:"id"`
+	Code          string `json:"code"`
+	Status        string `json:"status"`
+	PlayerCount   int    `json:"playerCount"`
+	IsParticipant bool   `json:"isParticipant"`
 }
 
 func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
@@ -87,11 +88,19 @@ func (s *Server) getRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+
+	isParticipant := false
+	if cookie, err := r.Cookie("session_token"); err == nil {
+		if player, err := s.players.FindBySession(ctx, cookie.Value); err == nil {
+			isParticipant = player.RoomID == room.ID
+		}
+	}
 	writeJSON(w, http.StatusOK, roomInfoResponse{
-		ID:          room.ID,
-		Code:        room.Code,
-		Status:      room.Status,
-		PlayerCount: count,
+		ID:            room.ID,
+		Code:          room.Code,
+		Status:        room.Status,
+		PlayerCount:   count,
+		IsParticipant: isParticipant,
 	})
 }
 

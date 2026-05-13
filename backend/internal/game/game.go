@@ -13,14 +13,16 @@ const (
 )
 
 type Game struct {
-	Board         *Board
-	CurrentTurn   Color
-	Dice          []int
-	RemainingDice []int
-	Phase         Phase
-	Winner        Color
-	IsMars        bool
-	MoveCount     int
+	Board             *Board
+	CurrentTurn       Color
+	Dice              []int
+	RemainingDice     []int
+	Phase             Phase
+	Winner            Color
+	IsMars            bool
+	MoveCount         int
+	HeadMovesThisTurn [3]int
+	TurnsCompleted    [3]int
 }
 
 func NewGame() *Game {
@@ -39,6 +41,7 @@ func (g *Game) Roll(d Dice) error {
 	a, b := d.Roll()
 	g.Dice = []int{a, b}
 	g.RemainingDice = ExpandDice(a, b)
+	g.HeadMovesThisTurn[g.CurrentTurn] = 0
 	if g.Phase == PhaseRollingFirst {
 		g.Phase = PhasePlaying
 	}
@@ -64,6 +67,10 @@ func (g *Game) ApplyMove(m Move) error {
 	if g.Board.Points[m.From].Owner != g.CurrentTurn {
 		return fmt.Errorf("not your checker at %d", m.From)
 	}
+	if m.From == g.CurrentTurn.StartPoint() &&
+		g.HeadMovesThisTurn[g.CurrentTurn] >= g.maxHeadMovesThisTurn() {
+		return fmt.Errorf("cannot move more checkers from start point this turn")
+	}
 
 	if ok, err := IsValidMove(g.Board, g.CurrentTurn, m); !ok {
 		return err
@@ -74,6 +81,9 @@ func (g *Game) ApplyMove(m Move) error {
 	}
 
 	g.RemainingDice = append(g.RemainingDice[:dieIdx], g.RemainingDice[dieIdx+1:]...)
+	if m.From == g.CurrentTurn.StartPoint() {
+		g.HeadMovesThisTurn[g.CurrentTurn]++
+	}
 	g.MoveCount++
 
 	if g.Board.AllInHome(g.CurrentTurn) && g.Phase == PhasePlaying {
@@ -94,7 +104,13 @@ func (g *Game) EndTurn() error {
 	}
 
 	if len(g.RemainingDice) > 0 {
-		sequences := GenerateSequences(g.Board, g.CurrentTurn, g.RemainingDice)
+		sequences := GenerateSequencesForTurn(
+			g.Board,
+			g.CurrentTurn,
+			g.RemainingDice,
+			g.HeadMovesThisTurn[g.CurrentTurn],
+			g.maxHeadMovesThisTurn(),
+		)
 		for _, seq := range sequences {
 			if len(seq) > 0 {
 				return fmt.Errorf("cannot end turn: %d usable moves remain", len(seq))
@@ -102,6 +118,8 @@ func (g *Game) EndTurn() error {
 		}
 	}
 
+	g.TurnsCompleted[g.CurrentTurn]++
+	g.HeadMovesThisTurn[g.CurrentTurn] = 0
 	g.CurrentTurn = g.CurrentTurn.Opponent()
 	g.Dice = nil
 	g.RemainingDice = nil
@@ -115,7 +133,13 @@ func (g *Game) AvailableMoves() [][]Move {
 	if len(g.RemainingDice) == 0 {
 		return nil
 	}
-	return GenerateSequences(g.Board, g.CurrentTurn, g.RemainingDice)
+	return GenerateSequencesForTurn(
+		g.Board,
+		g.CurrentTurn,
+		g.RemainingDice,
+		g.HeadMovesThisTurn[g.CurrentTurn],
+		g.maxHeadMovesThisTurn(),
+	)
 }
 
 func (g *Game) RollFirst(d Dice) error {
@@ -134,7 +158,18 @@ func (g *Game) RollFirst(d Dice) error {
 		}
 		g.Dice = []int{a, b}
 		g.RemainingDice = ExpandDice(a, b)
+		g.HeadMovesThisTurn[g.CurrentTurn] = 0
 		g.Phase = PhasePlaying
 		return nil
 	}
+}
+
+func (g *Game) maxHeadMovesThisTurn() int {
+	if g.CurrentTurn != White && g.CurrentTurn != Black {
+		return 0
+	}
+	if g.TurnsCompleted[g.CurrentTurn] == 0 && len(g.Dice) == 2 && g.Dice[0] == g.Dice[1] {
+		return 2
+	}
+	return 1
 }

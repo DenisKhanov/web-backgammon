@@ -12,10 +12,10 @@ interface CheckerProps {
 }
 
 export default function Checker({ color, cx, cy, isSelected, onClick }: CheckerProps) {
-  const fill = color === 'white' ? '#f0f0f0' : '#3a3a3a';
+  const fill = color === 'white' ? '#f7f4ea' : '#252525';
   const shadow = color === 'white'
-    ? 'drop-shadow(3px 3px 6px #a3b1c6) drop-shadow(-3px -3px 6px #ffffff)'
-    : 'drop-shadow(3px 3px 6px #1a1a1a) drop-shadow(-3px -3px 6px #555555)';
+    ? 'drop-shadow(2px 3px 3px rgba(30, 20, 10, 0.35))'
+    : 'drop-shadow(2px 3px 3px rgba(0, 0, 0, 0.45))';
 
   return (
     <motion.circle
@@ -24,8 +24,8 @@ export default function Checker({ color, cx, cy, isSelected, onClick }: CheckerP
       cy={cy}
       r={22}
       fill={fill}
-      stroke={isSelected ? '#6c63ff' : 'transparent'}
-      strokeWidth={isSelected ? 3 : 0}
+      stroke={isSelected ? '#f4d35e' : color === 'white' ? '#d8cfbb' : '#111111'}
+      strokeWidth={isSelected ? 4 : 1.5}
       style={{ filter: shadow, cursor: onClick ? 'pointer' : 'default' }}
       onClick={onClick}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}

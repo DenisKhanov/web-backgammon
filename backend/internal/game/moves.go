@@ -37,8 +37,14 @@ func GenerateSingleMoves(b *Board, c Color, die int) []Move {
 // When only one die can be used and the dice are distinct, enforces the
 // "must use the larger die" rule.
 func GenerateSequences(b *Board, c Color, dice []int) [][]Move {
+	return GenerateSequencesForTurn(b, c, dice, 0, len(dice))
+}
+
+// GenerateSequencesForTurn returns all maximal-length move sequences while
+// respecting the per-turn limit for moving checkers from the start point.
+func GenerateSequencesForTurn(b *Board, c Color, dice []int, headMovesUsed, maxHeadMoves int) [][]Move {
 	var all [][]Move
-	collect(b, c, dice, []Move{}, &all)
+	collect(b, c, dice, []Move{}, &all, headMovesUsed, maxHeadMoves)
 
 	if len(all) == 0 {
 		return nil
@@ -78,7 +84,15 @@ func GenerateSequences(b *Board, c Color, dice []int) [][]Move {
 	return filtered
 }
 
-func collect(b *Board, c Color, dice []int, prefix []Move, out *[][]Move) {
+func collect(
+	b *Board,
+	c Color,
+	dice []int,
+	prefix []Move,
+	out *[][]Move,
+	headMovesUsed int,
+	maxHeadMoves int,
+) {
 	if len(dice) == 0 {
 		cp := append([]Move(nil), prefix...)
 		*out = append(*out, cp)
@@ -95,12 +109,19 @@ func collect(b *Board, c Color, dice []int, prefix []Move, out *[][]Move) {
 
 		moves := GenerateSingleMoves(b, c, die)
 		for _, m := range moves {
+			nextHeadMovesUsed := headMovesUsed
+			if m.From == c.StartPoint() {
+				if nextHeadMovesUsed >= maxHeadMoves {
+					continue
+				}
+				nextHeadMovesUsed++
+			}
 			anyMove = true
 			sim := *b
 			_ = m.Apply(&sim, c)
 			rest := append([]int{}, dice[:i]...)
 			rest = append(rest, dice[i+1:]...)
-			collect(&sim, c, rest, append(prefix, m), out)
+			collect(&sim, c, rest, append(prefix, m), out, nextHeadMovesUsed, maxHeadMoves)
 		}
 	}
 

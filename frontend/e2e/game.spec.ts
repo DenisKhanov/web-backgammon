@@ -10,25 +10,98 @@ async function createRoom(page: Page): Promise<string> {
   return code;
 }
 
+async function startGame(browser: Browser): Promise<{
+  code: string;
+  ctx1: Awaited<ReturnType<Browser['newContext']>>;
+  ctx2: Awaited<ReturnType<Browser['newContext']>>;
+  page1: Page;
+  page2: Page;
+}> {
+  const ctx1 = await browser.newContext();
+  const page1 = await ctx1.newPage();
+  const code = await createRoom(page1);
+
+  const ctx2 = await browser.newContext();
+  const page2 = await ctx2.newPage();
+  await page2.goto(`/room/${code}`);
+  await page2.getByPlaceholder('Ваше имя (до 40 символов)').fill('Игрок 2');
+  await page2.getByRole('button', { name: 'Войти в комнату' }).click();
+
+  await page1.waitForURL(new RegExp(`/game/${code}$`));
+  await page2.waitForURL(new RegExp(`/game/${code}$`));
+  await expect(page1.getByText('Загрузка доски...')).toBeHidden({ timeout: 10_000 });
+  await expect(page2.getByText('Загрузка доски...')).toBeHidden({ timeout: 10_000 });
+
+  return { code, ctx1, ctx2, page1, page2 };
+}
+
 test.describe('Full game lobby flow', () => {
   test('Two players can create and join a room', async ({ browser }) => {
-    // Player 1 creates room
+    const { code, ctx1, ctx2 } = await startGame(browser);
+    expect(code).toHaveLength(8);
+
+    await ctx1.close();
+    await ctx2.close();
+  });
+
+  test('Second player can join from copied room link', async ({ browser }) => {
     const ctx1 = await browser.newContext();
     const page1 = await ctx1.newPage();
     const code = await createRoom(page1);
-    expect(code).toHaveLength(8);
 
-    // Player 2 joins room
     const ctx2 = await browser.newContext();
     const page2 = await ctx2.newPage();
-    await page2.goto('/');
-    await page2.getByPlaceholder('Код комнаты (8 символов)').fill(code);
-    await page2.getByPlaceholder('Ваше имя (до 40 символов)').last().fill('Игрок 2');
-    await page2.getByRole('button', { name: 'Войти' }).click();
+    await page2.goto(`/room/${code}`);
 
-    // Both pages redirect to /room/[code]
-    await page2.waitForURL(/\/room\//);
-    expect(page2.url()).toContain(code);
+    await page2.getByPlaceholder('Ваше имя (до 40 символов)').fill('Игрок 2');
+    await page2.getByRole('button', { name: 'Войти в комнату' }).click();
+
+    await page2.waitForURL(new RegExp(`/game/${code}$`));
+    await page1.waitForURL(new RegExp(`/game/${code}$`));
+
+    await ctx1.close();
+    await ctx2.close();
+  });
+
+  test('Current player can see legal targets and move a checker', async ({ browser }) => {
+    const { ctx1, ctx2, page1, page2 } = await startGame(browser);
+
+    const currentPage = await page1.locator('.ring-2').filter({ hasText: '(вы)' }).count()
+      ? page1
+      : page2;
+    const board = currentPage.getByTestId('game-board');
+    const myColor = await board.getAttribute('data-my-color');
+    const sourcePoint = myColor === 'white' ? '24' : '1';
+
+    await currentPage.getByTestId(`point-${sourcePoint}`).click();
+    const target = currentPage.getByTestId('valid-target').first();
+    await expect(target).toBeVisible();
+    await target.click();
+
+    await expect(currentPage.getByTestId(`point-${sourcePoint}`)).toHaveAttribute(
+      'data-checkers',
+      '14',
+    );
+    await expect(currentPage.getByTestId('valid-target')).toHaveCount(0);
+
+    await ctx1.close();
+    await ctx2.close();
+  });
+
+  test('Waiting player cannot select checkers or see legal targets', async ({ browser }) => {
+    const { ctx1, ctx2, page1, page2 } = await startGame(browser);
+
+    const currentPage = await page1.locator('.ring-2').filter({ hasText: '(вы)' }).count()
+      ? page1
+      : page2;
+    const waitingPage = currentPage === page1 ? page2 : page1;
+    const board = waitingPage.getByTestId('game-board');
+    const myColor = await board.getAttribute('data-my-color');
+    const sourcePoint = myColor === 'white' ? '24' : '1';
+
+    await waitingPage.getByTestId(`point-${sourcePoint}`).locator('circle').first().click();
+
+    await expect(waitingPage.getByTestId('valid-target')).toHaveCount(0);
 
     await ctx1.close();
     await ctx2.close();

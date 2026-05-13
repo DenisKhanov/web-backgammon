@@ -11,6 +11,7 @@ interface CheckerStackProps {
   count: number;
   cx: number;           // SVG x center of the point
   isBottom: boolean;    // true = checkers stack upward from bottom
+  isSelected?: boolean;
   onCheckerClick?: (stackIdx: number) => void;
 }
 
@@ -19,6 +20,7 @@ export default function CheckerStack({
   count,
   cx,
   isBottom,
+  isSelected,
   onCheckerClick,
 }: CheckerStackProps) {
   const radius = 22;
@@ -38,6 +40,7 @@ export default function CheckerStack({
             color={color}
             cx={cx}
             cy={cy}
+            isSelected={isSelected}
             onClick={onCheckerClick ? () => onCheckerClick(i) : undefined}
           />
         );

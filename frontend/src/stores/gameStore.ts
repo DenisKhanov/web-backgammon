@@ -9,7 +9,7 @@ interface GameStore {
   phase: GamePhase;
   myColor: Color | null;
   selectedChecker: number | null;
-  validMoves: Move[];
+  legalMoves: Move[];
   timeLeft: number;
   winner: Color | null;
   isMars: boolean;
@@ -30,7 +30,7 @@ const initialState = {
   phase: 'waiting' as GamePhase,
   myColor: null,
   selectedChecker: null,
-  validMoves: [],
+  legalMoves: [],
   timeLeft: 60,
   winner: null,
   isMars: false,

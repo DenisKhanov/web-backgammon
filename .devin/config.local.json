@@ -20,7 +20,23 @@
       "Exec(git log)",
       "Exec(grep nhooyr)",
       "Exec(python3)",
-      "Exec(realpath)"
+      "Exec(realpath)",
+      "Exec(git push)",
+      "Exec(npx playwright)",
+      "Exec(git rev-parse)",
+      "Exec(rm)",
+      "Exec(grep)",
+      "Exec(go vet)",
+      "Exec(git merge)",
+      "Exec(git stash)",
+      "Exec(docker ps)",
+      "Exec(docker inspect)",
+      "Exec(psql)",
+      "Exec(timeout go)",
+      "Exec(ss)",
+      "Exec(sudo ufw)",
+      "Exec(curl)",
+      "Exec(ping)"
     ]
   },
   "mcpServers": {

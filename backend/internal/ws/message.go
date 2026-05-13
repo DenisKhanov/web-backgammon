@@ -43,7 +43,7 @@ type ChatPayload struct {
 // --- Server → Client payload types ---
 
 type BoardPoint struct {
-	Owner    int `json:"owner"`    // 0=none 1=white 2=black
+	Owner    int `json:"owner"` // 0=none 1=white 2=black
 	Checkers int `json:"checkers"`
 }
 
@@ -60,6 +60,7 @@ type GameStatePayload struct {
 	BorneOff      [3]int           `json:"borneOff"`
 	Dice          []int            `json:"dice"`
 	RemainingDice []int            `json:"remainingDice"`
+	LegalMoves    []MovePayload    `json:"legalMoves"`
 	MoveCount     int              `json:"moveCount"`
 	MyColor       string           `json:"myColor"`
 	Players       []PlayerSnapshot `json:"players"`

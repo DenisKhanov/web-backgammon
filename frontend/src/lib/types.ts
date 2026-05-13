@@ -46,6 +46,7 @@ export interface Room {
   code: string;
   status: string;
   playerCount: number;
+  isParticipant: boolean;
 }
 
 export interface CreateRoomResponse {
@@ -87,6 +88,7 @@ export interface GameStatePayload {
   borneOff: number[]; // [3] index 1=white, 2=black
   dice: number[];
   remainingDice: number[];
+  legalMoves: Move[];
   moveCount: number;
   myColor: Color;
   players: PlayerSnapshot[];
