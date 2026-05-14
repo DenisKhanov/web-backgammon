@@ -112,7 +112,7 @@ export default function Board({ sendMove }: BoardProps) {
       viewBox={`0 0 ${BOARD_W} ${BOARD_H}`}
       preserveAspectRatio="xMidYMid meet"
       className="w-full max-w-5xl drop-shadow-2xl"
-      style={{ touchAction: 'none' }}
+      style={{ touchAction: 'none', maxHeight: 'calc(100vh - 10rem)' }}
     >
       <defs>
         <radialGradient id="board-scene-bg" cx="50%" cy="38%" r="76%">

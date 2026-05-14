@@ -494,6 +494,8 @@ func (r *Room) legalMovesPayload() []MovePayload {
 
 	seen := make(map[moveKey]bool)
 	moves := make([]MovePayload, 0)
+
+	// Individual moves (first move of each sequence).
 	for _, seq := range sequences {
 		if len(seq) == 0 {
 			continue
@@ -507,6 +509,54 @@ func (r *Room) legalMovesPayload() []MovePayload {
 		seen[key] = true
 		moves = append(moves, payload)
 	}
+
+	// Compound moves: chained consecutive moves using the same checker.
+	// For a sequence like [{from:A,to:B,die:5},{from:B,to:C,die:3}],
+	// produce a compound move {from:A,to:C,die:8,steps:[...]}.
+	type compoundKey struct {
+		from int
+		to   int
+	}
+	compoundSeen := make(map[compoundKey]bool)
+
+	for _, seq := range sequences {
+		if len(seq) < 2 {
+			continue
+		}
+
+		// Find the maximal chain starting from seq[0] where each move
+		// continues from the previous move's destination.
+		chainEnd := 1
+		for chainEnd < len(seq) && seq[chainEnd].From == seq[chainEnd-1].To {
+			chainEnd++
+		}
+
+		// Create compound moves for each prefix of the chain of length >= 2.
+		for end := 2; end <= chainEnd; end++ {
+			from := seq[0].From
+			to := seq[end-1].To
+			totalDie := 0
+			steps := make([]MovePayload, end)
+			for i := 0; i < end; i++ {
+				totalDie += seq[i].Die
+				steps[i] = MovePayload{From: seq[i].From, To: seq[i].To, Die: seq[i].Die}
+			}
+
+			key := compoundKey{from: from, to: to}
+			if compoundSeen[key] {
+				continue
+			}
+			compoundSeen[key] = true
+
+			moves = append(moves, MovePayload{
+				From:  from,
+				To:    to,
+				Die:   totalDie,
+				Steps: steps,
+			})
+		}
+	}
+
 	return moves
 }
 

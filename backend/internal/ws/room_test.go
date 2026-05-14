@@ -66,7 +66,7 @@ func TestRoomBuildGameStateIncludesLargerDieWhenOnlyOneMoveUsable(t *testing.T) 
 	assert.Equal(t, []MovePayload{{From: 14, To: 9, Die: 5}}, state.LegalMoves)
 }
 
-func TestRoomBuildGameStateIncludesOnlyImmediatelyPlayableMoves(t *testing.T) {
+func TestRoomBuildGameStateIncludesCompoundMoves(t *testing.T) {
 	b := &game.Board{}
 	b.Points[24] = game.Point{Owner: game.White, Checkers: 1}
 
@@ -81,11 +81,76 @@ func TestRoomBuildGameStateIncludesOnlyImmediatelyPlayableMoves(t *testing.T) {
 
 	state := r.buildGameState(game.White)
 
+	// Individual moves
 	assert.Contains(t, state.LegalMoves, MovePayload{From: 24, To: 23, Die: 1})
 	assert.Contains(t, state.LegalMoves, MovePayload{From: 24, To: 19, Die: 5})
-	for _, move := range state.LegalMoves {
-		assert.False(t, move.From == 24 && move.To == 18, "compound targets are not immediately playable moves")
+
+	// Compound move: 1+5=6 from 24 to 18
+	compound := MovePayload{
+		From: 24, To: 18, Die: 6,
+		Steps: []MovePayload{
+			{From: 24, To: 23, Die: 1},
+			{From: 23, To: 18, Die: 5},
+		},
 	}
+	assert.Contains(t, state.LegalMoves, compound)
+}
+
+func TestRoomBuildGameStateCompoundMoveViaAlternateOrder(t *testing.T) {
+	// White checker at 24, opponent at 23 blocks die-1 intermediate.
+	// Die 1: 24→23 blocked. Die 5: 24→19 ok.
+	// But compound 5+1: 24→19→18 is valid via the alternate order.
+	b := &game.Board{}
+	b.Points[24] = game.Point{Owner: game.White, Checkers: 1}
+	b.Points[23] = game.Point{Owner: game.Black, Checkers: 2}
+
+	r := newRoom("TESTROOM", nil)
+	r.g = &game.Game{
+		Board:         b,
+		CurrentTurn:   game.White,
+		Dice:          []int{1, 5},
+		RemainingDice: []int{1, 5},
+		Phase:         game.PhasePlaying,
+	}
+
+	state := r.buildGameState(game.White)
+
+	// Single die 5 is playable
+	assert.Contains(t, state.LegalMoves, MovePayload{From: 24, To: 19, Die: 5})
+
+	// Compound move via alternate order: 24→19 (die 5) then 19→18 (die 1)
+	compound := MovePayload{
+		From: 24, To: 18, Die: 6,
+		Steps: []MovePayload{
+			{From: 24, To: 19, Die: 5},
+			{From: 19, To: 18, Die: 1},
+		},
+	}
+	assert.Contains(t, state.LegalMoves, compound)
+}
+
+func TestRoomBuildGameStateNoCompoundMoveWhenBothIntermediatesBlocked(t *testing.T) {
+	// White checker at 24, opponent blocks BOTH intermediate points.
+	// Die 3: 24→21 blocked. Die 5: 24→19 blocked.
+	// No moves at all.
+	b := &game.Board{}
+	b.Points[24] = game.Point{Owner: game.White, Checkers: 1}
+	b.Points[21] = game.Point{Owner: game.Black, Checkers: 2}
+	b.Points[19] = game.Point{Owner: game.Black, Checkers: 2}
+
+	r := newRoom("TESTROOM", nil)
+	r.g = &game.Game{
+		Board:         b,
+		CurrentTurn:   game.White,
+		Dice:          []int{3, 5},
+		RemainingDice: []int{3, 5},
+		Phase:         game.PhasePlaying,
+	}
+
+	state := r.buildGameState(game.White)
+
+	// No moves available at all
+	assert.Empty(t, state.LegalMoves)
 }
 
 func TestRoomHandleMoveAdvancesTurnAfterFullMove(t *testing.T) {

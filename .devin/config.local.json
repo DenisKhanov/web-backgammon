@@ -36,7 +36,8 @@
       "Exec(ss)",
       "Exec(sudo ufw)",
       "Exec(curl)",
-      "Exec(ping)"
+      "Exec(ping)",
+      "Exec(npx next)"
     ]
   },
   "mcpServers": {

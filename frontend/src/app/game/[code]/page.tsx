@@ -39,8 +39,8 @@ export default function GamePage() {
   };
 
   return (
-    <div className="min-h-screen game-scene-bg flex flex-col items-center gap-4 p-4 text-white">
-      <div className="grid w-full max-w-6xl grid-cols-1 items-center gap-3 md:grid-cols-[1fr_auto_1fr]">
+    <div className="min-h-screen game-scene-bg flex flex-col items-center gap-2 p-2 sm:gap-4 sm:p-4 text-white">
+      <div className="grid w-full max-w-6xl grid-cols-1 items-center gap-1 sm:gap-3 md:grid-cols-[1fr_auto_1fr]">
         <div className="justify-self-start">
           {whitePlayer && (
             <PlayerInfo
@@ -52,8 +52,8 @@ export default function GamePage() {
           )}
         </div>
         <div className="text-center">
-          <div className="text-xs font-black uppercase tracking-[0.16em] text-white/60">Time</div>
-          <div className="text-5xl font-black leading-none drop-shadow-lg">{timeLeftToClock(timeLeft)}</div>
+          <div className="text-[10px] sm:text-xs font-black uppercase tracking-[0.16em] text-white/60">Time</div>
+          <div className="text-2xl sm:text-5xl font-black leading-none drop-shadow-lg">{timeLeftToClock(timeLeft)}</div>
         </div>
         <div className="justify-self-end">
           {blackPlayer && (
@@ -67,8 +67,8 @@ export default function GamePage() {
         </div>
       </div>
 
-      <div className="flex w-full max-w-7xl flex-col items-center gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
-        <div className="flex w-full min-w-0 flex-col items-center gap-4">
+      <div className="flex w-full max-w-7xl flex-col items-center gap-2 sm:gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+        <div className="flex w-full min-w-0 flex-col items-center gap-2 sm:gap-4">
         {/* Board */}
           <Board sendMove={sendMove} />
 
