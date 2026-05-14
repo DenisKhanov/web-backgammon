@@ -53,6 +53,10 @@ func (g *Game) ApplyMove(m Move) error {
 		return fmt.Errorf("cannot move in phase %d", g.Phase)
 	}
 
+	if !g.isLegalNextMove(m) {
+		return fmt.Errorf("move is not legal for the current turn")
+	}
+
 	dieIdx := -1
 	for i, d := range g.RemainingDice {
 		if d == m.Die {
@@ -142,6 +146,20 @@ func (g *Game) AvailableMoves() [][]Move {
 	)
 }
 
+func (g *Game) isLegalNextMove(m Move) bool {
+	sequences := g.AvailableMoves()
+	for _, seq := range sequences {
+		if len(seq) == 0 {
+			continue
+		}
+		first := seq[0]
+		if first == m {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *Game) RollFirst(d Dice) error {
 	if g.Phase != PhaseWaiting {
 		return fmt.Errorf("RollFirst allowed only in PhaseWaiting, got %d", g.Phase)
@@ -168,7 +186,10 @@ func (g *Game) maxHeadMovesThisTurn() int {
 	if g.CurrentTurn != White && g.CurrentTurn != Black {
 		return 0
 	}
-	if g.TurnsCompleted[g.CurrentTurn] == 0 && len(g.Dice) == 2 && g.Dice[0] == g.Dice[1] {
+	if g.TurnsCompleted[g.CurrentTurn] == 0 &&
+		len(g.Dice) == 2 &&
+		g.Dice[0] == g.Dice[1] &&
+		(g.Dice[0] == 3 || g.Dice[0] == 4 || g.Dice[0] == 6) {
 		return 2
 	}
 	return 1

@@ -264,12 +264,25 @@ func (r *Room) handleMove(c *Client, raw json.RawMessage) {
 		Die:           p.Die,
 		RemainingDice: r.g.RemainingDice,
 	}))
-	r.broadcastGameState()
-	r.persistState()
 
 	if r.g.Phase == game.PhaseFinished {
 		r.handleGameOver()
+		return
 	}
+
+	if r.shouldAutoEndTurn() {
+		if err := r.g.EndTurn(); err != nil {
+			c.sendMsg(mustEncode("move_error", MoveErrorPayload{Reason: err.Error()}))
+			r.broadcastGameState()
+			r.persistState()
+			return
+		}
+		r.advanceTurn()
+		return
+	}
+
+	r.broadcastGameState()
+	r.persistState()
 }
 
 func (r *Room) handleEndTurn(c *Client) {
@@ -302,6 +315,22 @@ func (r *Room) advanceTurn() {
 	}))
 	r.broadcastGameState()
 	r.persistState()
+}
+
+func (r *Room) shouldAutoEndTurn() bool {
+	if r.g == nil || r.g.Phase == game.PhaseFinished {
+		return false
+	}
+	if len(r.g.RemainingDice) == 0 {
+		return true
+	}
+	sequences := r.g.AvailableMoves()
+	for _, seq := range sequences {
+		if len(seq) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Room) handleChat(c *Client, raw json.RawMessage) {
@@ -457,20 +486,77 @@ func (r *Room) legalMovesPayload() []MovePayload {
 		return nil
 	}
 
-	seen := make(map[MovePayload]bool)
+	type moveKey struct {
+		from int
+		to   int
+		die  int
+	}
+
+	seen := make(map[moveKey]bool)
 	moves := make([]MovePayload, 0)
+
+	// Individual moves (first move of each sequence).
 	for _, seq := range sequences {
 		if len(seq) == 0 {
 			continue
 		}
-		first := seq[0]
-		payload := MovePayload{From: first.From, To: first.To, Die: first.Die}
-		if seen[payload] {
+		move := seq[0]
+		payload := MovePayload{From: move.From, To: move.To, Die: move.Die}
+		key := moveKey{from: payload.From, to: payload.To, die: payload.Die}
+		if seen[key] {
 			continue
 		}
-		seen[payload] = true
+		seen[key] = true
 		moves = append(moves, payload)
 	}
+
+	// Compound moves: chained consecutive moves using the same checker.
+	// For a sequence like [{from:A,to:B,die:5},{from:B,to:C,die:3}],
+	// produce a compound move {from:A,to:C,die:8,steps:[...]}.
+	type compoundKey struct {
+		from int
+		to   int
+	}
+	compoundSeen := make(map[compoundKey]bool)
+
+	for _, seq := range sequences {
+		if len(seq) < 2 {
+			continue
+		}
+
+		// Find the maximal chain starting from seq[0] where each move
+		// continues from the previous move's destination.
+		chainEnd := 1
+		for chainEnd < len(seq) && seq[chainEnd].From == seq[chainEnd-1].To {
+			chainEnd++
+		}
+
+		// Create compound moves for each prefix of the chain of length >= 2.
+		for end := 2; end <= chainEnd; end++ {
+			from := seq[0].From
+			to := seq[end-1].To
+			totalDie := 0
+			steps := make([]MovePayload, end)
+			for i := 0; i < end; i++ {
+				totalDie += seq[i].Die
+				steps[i] = MovePayload{From: seq[i].From, To: seq[i].To, Die: seq[i].Die}
+			}
+
+			key := compoundKey{from: from, to: to}
+			if compoundSeen[key] {
+				continue
+			}
+			compoundSeen[key] = true
+
+			moves = append(moves, MovePayload{
+				From:  from,
+				To:    to,
+				Die:   totalDie,
+				Steps: steps,
+			})
+		}
+	}
+
 	return moves
 }
 

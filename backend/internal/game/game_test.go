@@ -96,6 +96,40 @@ func TestGame_ApplyMove_AllowsSecondCheckerFromStartOnFirstTurnDouble(t *testing
 	assert.Equal(t, 2, g.Board.Points[18].Checkers)
 }
 
+func TestGame_ApplyMove_RejectsSecondCheckerFromStartOnFirstTurnDoubleFive(t *testing.T) {
+	g := NewGame()
+	g.Phase = PhasePlaying
+	g.CurrentTurn = White
+	g.Dice = []int{5, 5}
+	g.RemainingDice = []int{5, 5, 5, 5}
+
+	require.NoError(t, g.ApplyMove(Move{From: 24, To: 19, Die: 5}))
+	err := g.ApplyMove(Move{From: 24, To: 19, Die: 5})
+
+	assert.Error(t, err)
+	assert.Equal(t, 14, g.Board.Points[24].Checkers)
+	assert.Equal(t, 1, g.Board.Points[19].Checkers)
+}
+
+func TestGame_ApplyMove_RejectsMoveThatIsNotLegalFirstMove(t *testing.T) {
+	b := &Board{}
+	b.Points[14] = Point{Owner: White, Checkers: 1}
+	b.Points[6] = Point{Owner: Black, Checkers: 1}
+	g := &Game{
+		Board:         b,
+		CurrentTurn:   White,
+		Dice:          []int{3, 5},
+		RemainingDice: []int{3, 5},
+		Phase:         PhasePlaying,
+	}
+
+	err := g.ApplyMove(Move{From: 14, To: 11, Die: 3})
+
+	assert.Error(t, err)
+	assert.Equal(t, []int{3, 5}, g.RemainingDice)
+	assert.Equal(t, White, g.Board.Points[14].Owner)
+}
+
 func TestGame_AvailableMoves_AfterStartMoveExcludesSecondCheckerFromStart(t *testing.T) {
 	g := NewGame()
 	g.Phase = PhasePlaying
@@ -306,4 +340,21 @@ func TestGame_RollFirst_WrongPhase(t *testing.T) {
 	err := g.RollFirst(NewFixedDice([][2]int{{1, 2}}))
 
 	assert.Error(t, err)
+}
+
+func TestGame_RollFirst_AllNonTieRollsHaveAFirstMove(t *testing.T) {
+	for a := 1; a <= 6; a++ {
+		for b := 1; b <= 6; b++ {
+			if a == b {
+				continue
+			}
+
+			g := NewGame()
+			require.NoError(t, g.RollFirst(NewFixedDice([][2]int{{a, b}})))
+
+			sequences := g.AvailableMoves()
+			require.NotEmpty(t, sequences, "roll %d:%d should produce sequences", a, b)
+			assert.NotEmpty(t, sequences[0], "roll %d:%d should produce a first move", a, b)
+		}
+	}
 }

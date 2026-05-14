@@ -25,3 +25,6 @@ frontend/node_modules/
 coverage.out
 coverage.html
 *.test
+
+# Agent brainstorming artifacts
+.superpowers/
