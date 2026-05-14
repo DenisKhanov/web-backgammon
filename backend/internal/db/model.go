@@ -21,17 +21,23 @@ type Player struct {
 }
 
 type GameRecord struct {
-	ID            string
-	RoomID        string
-	BoardState    []byte // JSONB raw bytes
-	CurrentTurn   *string
-	Dice          []int
-	RemainingDice []int
-	Phase         string
-	Winner        *string
-	IsMars        bool
-	TurnStartedAt time.Time
-	MoveCount     int
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID              string
+	RoomID          string
+	BoardState      []byte // JSONB raw bytes
+	CurrentTurn     *string
+	Dice            []int
+	RemainingDice   []int
+	Phase           string
+	Winner          *string
+	IsMars          bool
+	TurnStartedAt   time.Time
+	MoveCount       int
+	HeadMovesWhite  int
+	HeadMovesBlack  int
+	TurnsWhite      int
+	TurnsBlack      int
+	ResultType      *string // 'oin' | 'mars' | 'home_mars' | 'koks'
+	ResultPoints    *int
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }

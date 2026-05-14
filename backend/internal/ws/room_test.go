@@ -121,13 +121,17 @@ func TestGameFromRecordRestoresPersistedState(t *testing.T) {
 	currentTurn := "white"
 
 	restored, err := gameFromRecord(&db.GameRecord{
-		ID:            "game-id",
-		BoardState:    boardJSON,
-		CurrentTurn:   &currentTurn,
-		Dice:          []int{2, 3},
-		RemainingDice: []int{3},
-		Phase:         "playing",
-		MoveCount:     1,
+		ID:              "game-id",
+		BoardState:      boardJSON,
+		CurrentTurn:     &currentTurn,
+		Dice:            []int{2, 3},
+		RemainingDice:   []int{3},
+		Phase:           "playing",
+		MoveCount:       1,
+		HeadMovesWhite:  1,
+		HeadMovesBlack:  0,
+		TurnsWhite:      2,
+		TurnsBlack:      3,
 	})
 
 	require.NoError(t, err)
@@ -138,4 +142,57 @@ func TestGameFromRecordRestoresPersistedState(t *testing.T) {
 	assert.Equal(t, 1, restored.MoveCount)
 	assert.Equal(t, game.White, restored.Board.Points[22].Owner)
 	assert.Equal(t, 1, restored.Board.Points[22].Checkers)
+	assert.Equal(t, 1, restored.HeadMovesThisTurn[game.White])
+	assert.Equal(t, 0, restored.HeadMovesThisTurn[game.Black])
+	assert.Equal(t, 2, restored.TurnsCompleted[game.White])
+	assert.Equal(t, 3, restored.TurnsCompleted[game.Black])
+}
+
+func TestGameFromRecordRestoresResult(t *testing.T) {
+	b := &game.Board{}
+	boardJSON, err := json.Marshal(b)
+	require.NoError(t, err)
+	currentTurn := "white"
+	resultType := "koks"
+	resultPoints := 3
+
+	restored, err := gameFromRecord(&db.GameRecord{
+		ID:            "game-id",
+		BoardState:    boardJSON,
+		CurrentTurn:   &currentTurn,
+		Dice:          []int{},
+		RemainingDice: []int{},
+		Phase:         "finished",
+		MoveCount:     42,
+		ResultType:    &resultType,
+		ResultPoints:  &resultPoints,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, game.ResultKoks, restored.Result)
+	assert.Equal(t, 3, restored.ResultPoints)
+}
+
+func TestGameFromRecordRestoresBearingOffFlags(t *testing.T) {
+	// White has all checkers in home (1-6), black does not.
+	b := &game.Board{}
+	b.Points[1] = game.Point{Owner: game.White, Checkers: 15}
+	b.Points[10] = game.Point{Owner: game.Black, Checkers: 15}
+	boardJSON, err := json.Marshal(b)
+	require.NoError(t, err)
+	currentTurn := "white"
+
+	restored, err := gameFromRecord(&db.GameRecord{
+		ID:            "game-id",
+		BoardState:    boardJSON,
+		CurrentTurn:   &currentTurn,
+		Dice:          []int{1, 2},
+		RemainingDice: []int{1, 2},
+		Phase:         "bearing_off",
+		MoveCount:     10,
+	})
+
+	require.NoError(t, err)
+	assert.True(t, restored.BearingOff[game.White], "white should be in bearing-off")
+	assert.False(t, restored.BearingOff[game.Black], "black should not be in bearing-off")
 }

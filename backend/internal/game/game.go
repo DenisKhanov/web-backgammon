@@ -12,6 +12,15 @@ const (
 	PhaseFinished
 )
 
+type ResultType string
+
+const (
+	ResultOin      ResultType = "oin"
+	ResultMars     ResultType = "mars"
+	ResultHomeMars ResultType = "home_mars"
+	ResultKoks     ResultType = "koks"
+)
+
 type Game struct {
 	Board             *Board
 	CurrentTurn       Color
@@ -23,6 +32,9 @@ type Game struct {
 	MoveCount         int
 	HeadMovesThisTurn [3]int
 	TurnsCompleted    [3]int
+	BearingOff        [3]bool // per-color: true when that color has all checkers in home
+	Result            ResultType
+	ResultPoints      int
 }
 
 func NewGame() *Game {
@@ -90,14 +102,19 @@ func (g *Game) ApplyMove(m Move) error {
 	}
 	g.MoveCount++
 
-	if g.Board.AllInHome(g.CurrentTurn) && g.Phase == PhasePlaying {
+	if g.Board.AllInHome(g.CurrentTurn) && !g.BearingOff[g.CurrentTurn] {
+		g.BearingOff[g.CurrentTurn] = true
+	}
+
+	// Transition to PhaseBearingOff only when the current player is bearing off.
+	if g.BearingOff[g.CurrentTurn] && g.Phase == PhasePlaying {
 		g.Phase = PhaseBearingOff
 	}
 
 	if g.Board.BorneOff[g.CurrentTurn] == 15 {
 		g.Phase = PhaseFinished
 		g.Winner = g.CurrentTurn
-		g.IsMars = g.Board.BorneOff[g.CurrentTurn.Opponent()] == 0
+		g.classifyResult()
 	}
 	return nil
 }
@@ -127,6 +144,14 @@ func (g *Game) EndTurn() error {
 	g.CurrentTurn = g.CurrentTurn.Opponent()
 	g.Dice = nil
 	g.RemainingDice = nil
+
+	// Adjust phase: if the new current player is not bearing off but phase
+	// was PhaseBearingOff, revert to PhasePlaying so the non-bearing-off
+	// player can still move normally.
+	if g.Phase == PhaseBearingOff && !g.BearingOff[g.CurrentTurn] {
+		g.Phase = PhasePlaying
+	}
+
 	return nil
 }
 
@@ -193,4 +218,63 @@ func (g *Game) maxHeadMovesThisTurn() int {
 		return 2
 	}
 	return 1
+}
+
+// classifyResult determines the match result type and points.
+// Called when a player bears off all 15 checkers.
+func (g *Game) classifyResult() {
+	opp := g.CurrentTurn.Opponent()
+	oppBorneOff := g.Board.BorneOff[opp]
+
+	if oppBorneOff > 0 {
+		g.Result = ResultOin
+		g.ResultPoints = 1
+		g.IsMars = false
+		return
+	}
+
+	// Opponent bore off 0 — at least mars.
+	g.IsMars = true
+
+	// Check for koks: opponent has a checker in winner's home quadrant.
+	lo, hi := g.CurrentTurn.HomeRange()
+	hasOppInWinnerHome := false
+	for p := lo; p <= hi; p++ {
+		if g.Board.Points[p].Owner == opp && g.Board.Points[p].Checkers > 0 {
+			hasOppInWinnerHome = true
+			break
+		}
+	}
+	if hasOppInWinnerHome {
+		g.Result = ResultKoks
+		g.ResultPoints = 3
+		return
+	}
+
+	// Check for home mars: all opponent checkers are in opponent's own home
+	// but none were borne off.
+	oppLo, oppHi := opp.HomeRange()
+	allInOppHome := true
+	for p := 1; p <= 24; p++ {
+		if p >= oppLo && p <= oppHi {
+			continue
+		}
+		if g.Board.Points[p].Owner == opp && g.Board.Points[p].Checkers > 0 {
+			allInOppHome = false
+			break
+		}
+	}
+	if allInOppHome {
+		g.Result = ResultHomeMars
+		g.ResultPoints = 4
+		return
+	}
+
+	g.Result = ResultMars
+	g.ResultPoints = 2
+}
+
+// IsBearingOff returns true if the given color is in the bearing-off phase.
+func (g *Game) IsBearingOff(c Color) bool {
+	return g.BearingOff[c]
 }

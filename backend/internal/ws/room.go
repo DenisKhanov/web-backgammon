@@ -197,6 +197,7 @@ func (r *Room) startGame() {
 		Player:   colorName(r.g.CurrentTurn),
 	}
 	r.broadcastAll(mustEncode("dice_rolled", dicePayload))
+	r.startTurnTimer()
 	r.broadcastGameState()
 }
 
@@ -251,6 +252,13 @@ func (r *Room) handleMove(c *Client, raw json.RawMessage) {
 		c.sendMsg(mustEncode("move_error", MoveErrorPayload{Reason: "invalid_payload"}))
 		return
 	}
+
+	// Compound move: if Steps is provided, apply them atomically.
+	if len(p.Steps) > 0 {
+		r.handleCompoundMove(c, p)
+		return
+	}
+
 	m := game.Move{From: p.From, To: p.To, Die: p.Die}
 	if err := r.g.ApplyMove(m); err != nil {
 		c.sendMsg(mustEncode("move_error", MoveErrorPayload{Reason: err.Error()}))
@@ -258,6 +266,62 @@ func (r *Room) handleMove(c *Client, raw json.RawMessage) {
 	}
 
 	// Broadcast the move to the opponent; send full state to both.
+	r.broadcastExceptSlot(r.slotOf(c), mustEncode("opponent_moved", OpponentMovedPayload{
+		From:          p.From,
+		To:            p.To,
+		Die:           p.Die,
+		RemainingDice: r.g.RemainingDice,
+	}))
+
+	if r.g.Phase == game.PhaseFinished {
+		r.handleGameOver()
+		return
+	}
+
+	if r.shouldAutoEndTurn() {
+		if err := r.g.EndTurn(); err != nil {
+			c.sendMsg(mustEncode("move_error", MoveErrorPayload{Reason: err.Error()}))
+			r.broadcastGameState()
+			r.persistState()
+			return
+		}
+		r.advanceTurn()
+		return
+	}
+
+	r.broadcastGameState()
+	r.persistState()
+}
+
+// handleCompoundMove applies a compound move (multiple steps) atomically.
+// If any step fails, the entire move is rolled back.
+func (r *Room) handleCompoundMove(c *Client, p MovePayload) {
+	// Snapshot the game state before attempting the compound move.
+	savedBoard := *r.g.Board
+	savedRemainingDice := append([]int(nil), r.g.RemainingDice...)
+	savedMoveCount := r.g.MoveCount
+	savedHeadMoves := r.g.HeadMovesThisTurn
+	savedPhase := r.g.Phase
+	savedBearingOff := r.g.BearingOff
+
+	for i, step := range p.Steps {
+		m := game.Move{From: step.From, To: step.To, Die: step.Die}
+		if err := r.g.ApplyMove(m); err != nil {
+			// Rollback entire compound move.
+			r.g.Board = &savedBoard
+			r.g.RemainingDice = savedRemainingDice
+			r.g.MoveCount = savedMoveCount
+			r.g.HeadMovesThisTurn = savedHeadMoves
+			r.g.Phase = savedPhase
+			r.g.BearingOff = savedBearingOff
+			c.sendMsg(mustEncode("move_error", MoveErrorPayload{
+				Reason: fmt.Sprintf("compound move step %d failed: %s", i+1, err.Error()),
+			}))
+			return
+		}
+	}
+
+	// Compound move succeeded — broadcast as a single opponent_moved.
 	r.broadcastExceptSlot(r.slotOf(c), mustEncode("opponent_moved", OpponentMovedPayload{
 		From:          p.From,
 		To:            p.To,
@@ -313,6 +377,20 @@ func (r *Room) advanceTurn() {
 		Player:   colorName(r.g.CurrentTurn),
 		TimeLeft: int(turnDuration.Seconds()),
 	}))
+	r.startTurnTimer()
+
+	// Auto-pass: if no moves are available after rolling, immediately end turn.
+	if r.shouldAutoEndTurn() {
+		r.broadcastAll(mustEncode("no_moves", struct {
+			Player string `json:"player"`
+		}{Player: colorName(r.g.CurrentTurn)}))
+		if err := r.g.EndTurn(); err != nil {
+			slog.Error("auto-pass EndTurn failed", "err", err)
+		}
+		r.advanceTurn()
+		return
+	}
+
 	r.broadcastGameState()
 	r.persistState()
 }
@@ -355,8 +433,10 @@ func (r *Room) handleChat(c *Client, raw json.RawMessage) {
 func (r *Room) handleGameOver() {
 	r.stopTurnTimer()
 	payload := GameOverPayload{
-		Winner: colorName(r.g.Winner),
-		IsMars: r.g.IsMars,
+		Winner:       colorName(r.g.Winner),
+		IsMars:       r.g.IsMars,
+		ResultType:   string(r.g.Result),
+		ResultPoints: r.g.ResultPoints,
 	}
 	r.broadcastAll(mustEncode("game_over", payload))
 	// Persist final state.
@@ -552,6 +632,16 @@ func (r *Room) persistState() {
 		w := colorName(r.g.Winner)
 		winner = &w
 	}
+	var resultType *string
+	if r.g.Result != "" {
+		rt := string(r.g.Result)
+		resultType = &rt
+	}
+	var resultPoints *int
+	if r.g.ResultPoints > 0 {
+		rp := r.g.ResultPoints
+		resultPoints = &rp
+	}
 	ctx := context.Background()
 	if err := r.hub.repos.Games.UpdateState(ctx, r.gameID,
 		boardJSON,
@@ -562,6 +652,12 @@ func (r *Room) persistState() {
 		winner,
 		r.g.IsMars,
 		r.g.MoveCount,
+		r.g.HeadMovesThisTurn[game.White],
+		r.g.HeadMovesThisTurn[game.Black],
+		r.g.TurnsCompleted[game.White],
+		r.g.TurnsCompleted[game.Black],
+		resultType,
+		resultPoints,
 	); err != nil {
 		slog.Error("persist game state", "err", err)
 	}
@@ -601,15 +697,34 @@ func gameFromRecord(record *db.GameRecord) (*game.Game, error) {
 	}
 
 	g := &game.Game{
-		Board:         &board,
-		CurrentTurn:   colorFromNamePtr(record.CurrentTurn),
-		Dice:          append([]int(nil), record.Dice...),
-		RemainingDice: append([]int(nil), record.RemainingDice...),
-		Phase:         phaseFromName(record.Phase),
-		Winner:        colorFromNamePtr(record.Winner),
-		IsMars:        record.IsMars,
-		MoveCount:     record.MoveCount,
+		Board:             &board,
+		CurrentTurn:       colorFromNamePtr(record.CurrentTurn),
+		Dice:              append([]int(nil), record.Dice...),
+		RemainingDice:     append([]int(nil), record.RemainingDice...),
+		Phase:             phaseFromName(record.Phase),
+		Winner:            colorFromNamePtr(record.Winner),
+		IsMars:            record.IsMars,
+		MoveCount:         record.MoveCount,
+		HeadMovesThisTurn: [3]int{game.NoColor: 0, game.White: record.HeadMovesWhite, game.Black: record.HeadMovesBlack},
+		TurnsCompleted:    [3]int{game.NoColor: 0, game.White: record.TurnsWhite, game.Black: record.TurnsBlack},
 	}
+
+	// Restore BearingOff flags from board state.
+	if board.AllInHome(game.White) {
+		g.BearingOff[game.White] = true
+	}
+	if board.AllInHome(game.Black) {
+		g.BearingOff[game.Black] = true
+	}
+
+	// Restore result if game is finished.
+	if record.ResultType != nil {
+		g.Result = game.ResultType(*record.ResultType)
+	}
+	if record.ResultPoints != nil {
+		g.ResultPoints = *record.ResultPoints
+	}
+
 	return g, nil
 }
 

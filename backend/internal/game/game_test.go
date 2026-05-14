@@ -358,3 +358,155 @@ func TestGame_RollFirst_AllNonTieRollsHaveAFirstMove(t *testing.T) {
 		}
 	}
 }
+
+// --- Result classification tests ---
+
+func TestGame_Result_Oin(t *testing.T) {
+	g := NewGame()
+	g.Phase = PhaseBearingOff
+	g.CurrentTurn = White
+	g.Board = &Board{}
+	g.Board.Points[1] = Point{Owner: White, Checkers: 1}
+	g.Board.BorneOff[White] = 14
+	g.Board.BorneOff[Black] = 5
+	g.RemainingDice = []int{1}
+
+	require.NoError(t, g.ApplyMove(Move{From: 1, To: 0, Die: 1}))
+
+	assert.Equal(t, ResultOin, g.Result)
+	assert.Equal(t, 1, g.ResultPoints)
+	assert.False(t, g.IsMars)
+}
+
+func TestGame_Result_Mars(t *testing.T) {
+	g := NewGame()
+	g.Phase = PhaseBearingOff
+	g.CurrentTurn = White
+	g.Board = &Board{}
+	g.Board.Points[1] = Point{Owner: White, Checkers: 1}
+	g.Board.BorneOff[White] = 14
+	g.Board.BorneOff[Black] = 0
+	// Black has checkers outside white's home → mars, not koks.
+	g.Board.Points[10] = Point{Owner: Black, Checkers: 15}
+	g.RemainingDice = []int{1}
+
+	require.NoError(t, g.ApplyMove(Move{From: 1, To: 0, Die: 1}))
+
+	assert.Equal(t, ResultMars, g.Result)
+	assert.Equal(t, 2, g.ResultPoints)
+	assert.True(t, g.IsMars)
+}
+
+func TestGame_Result_Koks(t *testing.T) {
+	g := NewGame()
+	g.Phase = PhaseBearingOff
+	g.CurrentTurn = White
+	g.Board = &Board{}
+	g.Board.Points[1] = Point{Owner: White, Checkers: 1}
+	g.Board.BorneOff[White] = 14
+	g.Board.BorneOff[Black] = 0
+	// Black has a checker in white's home (points 1-6) → koks.
+	g.Board.Points[3] = Point{Owner: Black, Checkers: 15}
+	g.RemainingDice = []int{1}
+
+	require.NoError(t, g.ApplyMove(Move{From: 1, To: 0, Die: 1}))
+
+	assert.Equal(t, ResultKoks, g.Result)
+	assert.Equal(t, 3, g.ResultPoints)
+	assert.True(t, g.IsMars)
+}
+
+func TestGame_Result_HomeMars(t *testing.T) {
+	g := NewGame()
+	g.Phase = PhaseBearingOff
+	g.CurrentTurn = White
+	g.Board = &Board{}
+	g.Board.Points[1] = Point{Owner: White, Checkers: 1}
+	g.Board.BorneOff[White] = 14
+	g.Board.BorneOff[Black] = 0
+	// All black checkers are in black's home (19-24), none borne off → home mars.
+	for p := 19; p <= 24; p++ {
+		g.Board.Points[p] = Point{Owner: Black, Checkers: 2}
+	}
+	g.Board.Points[19] = Point{Owner: Black, Checkers: 5} // 5+2*5=15
+	g.RemainingDice = []int{1}
+
+	require.NoError(t, g.ApplyMove(Move{From: 1, To: 0, Die: 1}))
+
+	assert.Equal(t, ResultHomeMars, g.Result)
+	assert.Equal(t, 4, g.ResultPoints)
+	assert.True(t, g.IsMars)
+}
+
+// --- Per-player bearing-off phase tests ---
+
+func TestGame_BearingOff_PerPlayer(t *testing.T) {
+	g := NewGame()
+	g.Phase = PhasePlaying
+	g.CurrentTurn = White
+	g.Board = &Board{}
+	// White: all in home
+	for p := 1; p <= 6; p++ {
+		g.Board.Points[p] = Point{Owner: White, Checkers: 2}
+	}
+	g.Board.Points[1] = Point{Owner: White, Checkers: 3} // total 15
+	g.Board.BorneOff[White] = 0
+	// Black: not in home
+	g.Board.Points[10] = Point{Owner: Black, Checkers: 15}
+	g.Dice = []int{1, 2}
+	g.RemainingDice = []int{1, 2}
+
+	require.NoError(t, g.ApplyMove(Move{From: 1, To: 0, Die: 1}))
+
+	assert.True(t, g.BearingOff[White], "white should be in bearing-off")
+	assert.False(t, g.BearingOff[Black], "black should not be in bearing-off")
+	assert.Equal(t, PhaseBearingOff, g.Phase)
+}
+
+func TestGame_EndTurn_RevertsPhaseWhenOpponentNotBearingOff(t *testing.T) {
+	g := NewGame()
+	g.Phase = PhaseBearingOff
+	g.CurrentTurn = White
+	g.BearingOff[White] = true
+	g.BearingOff[Black] = false
+	g.Board = &Board{}
+	g.Board.Points[1] = Point{Owner: White, Checkers: 1}
+	g.Board.Points[10] = Point{Owner: Black, Checkers: 15}
+	g.Board.BorneOff = [3]int{White: 14, Black: 0}
+	g.Dice = []int{1, 2}
+	g.RemainingDice = []int{1}
+
+	require.NoError(t, g.ApplyMove(Move{From: 1, To: 0, Die: 1}))
+
+	// White wins, game over — no EndTurn needed.
+	assert.Equal(t, PhaseFinished, g.Phase)
+}
+
+func TestGame_EndTurn_PhaseRevertsToPlayingForNonBearingOffPlayer(t *testing.T) {
+	g := NewGame()
+	g.Phase = PhaseBearingOff
+	g.CurrentTurn = White
+	g.BearingOff[White] = true
+	g.BearingOff[Black] = false
+	g.Board = &Board{}
+	g.Board.Points[1] = Point{Owner: White, Checkers: 2}
+	g.Board.Points[10] = Point{Owner: Black, Checkers: 15}
+	g.Board.BorneOff = [3]int{White: 13, Black: 0}
+	g.RemainingDice = []int{}
+	g.Dice = []int{1, 2}
+
+	err := g.EndTurn()
+
+	require.NoError(t, err)
+	assert.Equal(t, Black, g.CurrentTurn)
+	assert.Equal(t, PhasePlaying, g.Phase, "phase should revert to playing for non-bearing-off player")
+}
+
+func TestGame_IsBearingOff(t *testing.T) {
+	g := NewGame()
+	g.BearingOff[White] = true
+	g.BearingOff[Black] = false
+
+	assert.True(t, g.IsBearingOff(White))
+	assert.False(t, g.IsBearingOff(Black))
+}

@@ -1,0 +1,6 @@
+ALTER TABLE games DROP COLUMN IF EXISTS head_moves_white;
+ALTER TABLE games DROP COLUMN IF EXISTS head_moves_black;
+ALTER TABLE games DROP COLUMN IF EXISTS turns_white;
+ALTER TABLE games DROP COLUMN IF EXISTS turns_black;
+ALTER TABLE games DROP COLUMN IF EXISTS result_type;
+ALTER TABLE games DROP COLUMN IF EXISTS result_points;
