@@ -25,8 +25,9 @@ func GenerateSingleMoves(b *Board, c Color, die int) []Move {
 			out = append(out, Move{From: exact, To: target, Die: die})
 		}
 		// Fallback: highest occupied point when die > its distance.
+		// Avoid duplicate when highest == exact (already added above).
 		highest := highestOccupiedInHome(b, c)
-		if highest > 0 && distanceToBearOff(c, highest) < die {
+		if highest > 0 && highest != exact && distanceToBearOff(c, highest) < die {
 			out = append(out, Move{From: highest, To: target, Die: die})
 		}
 	}

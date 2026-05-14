@@ -566,10 +566,13 @@ func (r *Room) legalMovesPayload() []MovePayload {
 		return nil
 	}
 
+	// Dedup key: (from, to, firstDie) for individual moves;
+	// (from, to, stepsHash) for compound moves.
 	type moveKey struct {
-		from int
-		to   int
-		die  int
+		from      int
+		to        int
+		firstDie  int
+		stepsHash string // empty for individual moves
 	}
 
 	seen := make(map[moveKey]bool)
@@ -578,37 +581,51 @@ func (r *Room) legalMovesPayload() []MovePayload {
 		if len(seq) == 0 {
 			continue
 		}
-		origin := seq[0].From
-		totalDie := 0
-		steps := make([]MovePayload, 0, len(seq))
-		chainedToOrigin := true
-		for _, move := range seq {
-			if len(steps) > 0 && move.From != steps[len(steps)-1].To {
-				chainedToOrigin = false
-			}
-			totalDie += move.Die
-			step := MovePayload{From: move.From, To: move.To, Die: move.Die}
-			steps = append(steps, step)
 
-			payload := step
-			if len(steps) > 1 {
-				if !chainedToOrigin {
-					continue
-				}
-				payload = MovePayload{
-					From:  origin,
-					To:    move.To,
-					Die:   totalDie,
-					Steps: append([]MovePayload(nil), steps...),
-				}
-			}
+		// Always add the first individual move from each sequence.
+		first := seq[0]
+		key := moveKey{from: first.From, to: first.To, firstDie: first.Die}
+		if !seen[key] {
+			seen[key] = true
+			moves = append(moves, MovePayload{From: first.From, To: first.To, Die: first.Die})
+		}
 
-			key := moveKey{from: payload.From, to: payload.To, die: payload.Die}
-			if seen[key] {
+		// Build compound moves for chained prefixes starting from seq[0].
+		// A chain means each move continues from the previous move's destination.
+		chainEnd := 1
+		for chainEnd < len(seq) && seq[chainEnd].From == seq[chainEnd-1].To {
+			chainEnd++
+		}
+
+		// Create compound payloads for each prefix of length >= 2.
+		for end := 2; end <= chainEnd; end++ {
+			steps := make([]MovePayload, end)
+			for i := 0; i < end; i++ {
+				steps[i] = MovePayload{From: seq[i].From, To: seq[i].To, Die: seq[i].Die}
+			}
+			// Use first die as the die value (not sum) so the frontend
+			// can match it against remainingDice.
+			compoundKey := moveKey{
+				from:      seq[0].From,
+				to:        seq[end-1].To,
+				firstDie:  seq[0].Die,
+				stepsHash: fmt.Sprintf("%v", steps),
+			}
+			if seen[compoundKey] {
 				continue
 			}
-			seen[key] = true
-			moves = append(moves, payload)
+			seen[compoundKey] = true
+
+			totalDie := 0
+			for i := 0; i < end; i++ {
+				totalDie += seq[i].Die
+			}
+			moves = append(moves, MovePayload{
+				From:  seq[0].From,
+				To:    seq[end-1].To,
+				Die:   totalDie,
+				Steps: steps,
+			})
 		}
 	}
 	return moves

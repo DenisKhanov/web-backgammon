@@ -38,11 +38,9 @@ export default function Board({ sendMove }: BoardProps) {
   }, [isMyTurn, legalMoves, selectedChecker]);
 
   const sendLegalMove = useCallback((move: Move) => {
-    if (move.steps && move.steps.length > 0) {
-      move.steps.forEach(sendMove);
-    } else {
-      sendMove(move);
-    }
+    // Send the full move (including steps) as a single WS message.
+    // The backend handles compound moves atomically when steps are present.
+    sendMove(move);
   }, [sendMove]);
 
   const handlePointClick = useCallback((pointIdx: number) => {
