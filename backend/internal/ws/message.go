@@ -29,9 +29,10 @@ func mustEncode(msgType string, payload any) []byte {
 // --- Client → Server payload types ---
 
 type MovePayload struct {
-	From int `json:"from"`
-	To   int `json:"to"`
-	Die  int `json:"die"`
+	From  int           `json:"from"`
+	To    int           `json:"to"`
+	Die   int           `json:"die"`
+	Steps []MovePayload `json:"steps,omitempty"`
 }
 
 type ChatPayload struct {
@@ -96,8 +97,10 @@ type ChatMessagePayload struct {
 }
 
 type GameOverPayload struct {
-	Winner string `json:"winner"`
-	IsMars bool   `json:"isMars"`
+	Winner       string `json:"winner"`
+	IsMars       bool   `json:"isMars"`
+	ResultType   string `json:"resultType"`   // "oin" | "mars" | "home_mars" | "koks"
+	ResultPoints int    `json:"resultPoints"` // 1 | 2 | 3 | 4
 }
 
 type OpponentDisconnectedPayload struct {

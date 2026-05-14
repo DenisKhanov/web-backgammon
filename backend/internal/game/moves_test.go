@@ -133,3 +133,73 @@ func TestGenerateSequences_MustUseLargerDie(t *testing.T) {
 		assert.Equal(t, 5, seq[0].Die, "must use the larger die when only one is usable")
 	}
 }
+
+func TestGenerateSingleMoves_BearOff_NoDuplicateWhenExactEqualsHighest(t *testing.T) {
+	b := &Board{}
+	b.Points[4] = Point{Owner: White, Checkers: 15} // all on 4, die=6: exact=6 (empty), highest=4
+	moves := GenerateSingleMoves(b, White, 6)
+
+	bearOffCount := 0
+	for _, m := range moves {
+		if m.To == 0 && m.From == 4 {
+			bearOffCount++
+		}
+	}
+	assert.Equal(t, 1, bearOffCount, "should not generate duplicate bear-off moves when exact==highest")
+}
+
+func TestGenerateSingleMoves_BearOff_FallbackOnlyFromHighest(t *testing.T) {
+	b := &Board{}
+	b.Points[5] = Point{Owner: White, Checkers: 1}
+	b.Points[3] = Point{Owner: White, Checkers: 14}
+	moves := GenerateSingleMoves(b, White, 6)
+
+	for _, m := range moves {
+		if m.To == 0 {
+			assert.Equal(t, 5, m.From, "bear-off must be from highest (5), not from 3")
+		}
+	}
+}
+
+func TestGenerateSequences_HeadRule_OnlyOneFromHeadWithNonDouble(t *testing.T) {
+	b := NewBoard()
+	sequences := GenerateSequencesForTurn(b, White, []int{5, 3}, 0, 1)
+
+	for _, seq := range sequences {
+		headMoves := 0
+		for _, m := range seq {
+			if m.From == 24 {
+				headMoves++
+			}
+		}
+		assert.LessOrEqual(t, headMoves, 1, "should not move more than 1 from head with non-double dice")
+	}
+}
+
+func TestGenerateSequences_HeadRule_SameCheckerCanContinue(t *testing.T) {
+	b := NewBoard()
+	sequences := GenerateSequencesForTurn(b, White, []int{5, 3}, 0, 1)
+
+	// Should have sequence: 24->19 (die 5), 19->16 (die 3) — same checker
+	found := false
+	for _, seq := range sequences {
+		if len(seq) == 2 && seq[0].From == 24 && seq[0].To == 19 && seq[1].From == 19 && seq[1].To == 16 {
+			found = true
+		}
+	}
+	assert.True(t, found, "same checker from head should be able to continue with second die")
+}
+
+func TestGenerateSequences_BlockedIntermediateNotInSequence(t *testing.T) {
+	b := &Board{}
+	b.Points[20] = Point{Owner: White, Checkers: 1}
+	b.Points[11] = Point{Owner: Black, Checkers: 2} // blocks 14-3=11
+
+	sequences := GenerateSequences(b, White, []int{6, 3})
+
+	for _, seq := range sequences {
+		for _, m := range seq {
+			assert.NotEqual(t, 11, m.To, "should never move to opponent-occupied point 11")
+		}
+	}
+}

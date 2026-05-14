@@ -19,10 +19,16 @@ func (r *GameRepo) Create(ctx context.Context, roomID string, boardJSON []byte) 
 		INSERT INTO games (room_id, board_state, phase)
 		VALUES ($1, $2, 'rolling_first')
 		RETURNING id, room_id, board_state, current_turn, dice, remaining_dice,
-		          phase, winner, is_mars, turn_started_at, move_count, created_at, updated_at`,
+		          phase, winner, is_mars, turn_started_at, move_count,
+		          head_moves_white, head_moves_black, turns_white, turns_black,
+		          result_type, result_points,
+		          created_at, updated_at`,
 		roomID, boardJSON,
 	).Scan(&g.ID, &g.RoomID, &g.BoardState, &g.CurrentTurn, &g.Dice, &g.RemainingDice,
-		&g.Phase, &g.Winner, &g.IsMars, &g.TurnStartedAt, &g.MoveCount, &g.CreatedAt, &g.UpdatedAt)
+		&g.Phase, &g.Winner, &g.IsMars, &g.TurnStartedAt, &g.MoveCount,
+		&g.HeadMovesWhite, &g.HeadMovesBlack, &g.TurnsWhite, &g.TurnsBlack,
+		&g.ResultType, &g.ResultPoints,
+		&g.CreatedAt, &g.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("insert game: %w", err)
 	}
@@ -34,10 +40,16 @@ func (r *GameRepo) FindByRoomID(ctx context.Context, roomID string) (*GameRecord
 	var g GameRecord
 	err := r.pool.QueryRow(ctx, `
 		SELECT id, room_id, board_state, current_turn, dice, remaining_dice,
-		       phase, winner, is_mars, turn_started_at, move_count, created_at, updated_at
+		       phase, winner, is_mars, turn_started_at, move_count,
+		       head_moves_white, head_moves_black, turns_white, turns_black,
+		       result_type, result_points,
+		       created_at, updated_at
 		FROM games WHERE room_id = $1`, roomID,
 	).Scan(&g.ID, &g.RoomID, &g.BoardState, &g.CurrentTurn, &g.Dice, &g.RemainingDice,
-		&g.Phase, &g.Winner, &g.IsMars, &g.TurnStartedAt, &g.MoveCount, &g.CreatedAt, &g.UpdatedAt)
+		&g.Phase, &g.Winner, &g.IsMars, &g.TurnStartedAt, &g.MoveCount,
+		&g.HeadMovesWhite, &g.HeadMovesBlack, &g.TurnsWhite, &g.TurnsBlack,
+		&g.ResultType, &g.ResultPoints,
+		&g.CreatedAt, &g.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("find game by room: %w", err)
 	}
@@ -47,19 +59,29 @@ func (r *GameRepo) FindByRoomID(ctx context.Context, roomID string) (*GameRecord
 // UpdateState persists the full game state snapshot (called by WS after each move).
 func (r *GameRepo) UpdateState(ctx context.Context, gameID string,
 	boardJSON []byte, currentTurn string, dice, remainingDice []int,
-	phase string, winner *string, isMars bool, moveCount int) error {
+	phase string, winner *string, isMars bool, moveCount int,
+	headMovesWhite, headMovesBlack, turnsWhite, turnsBlack int,
+	resultType *string, resultPoints *int) error {
 	_, err := r.pool.Exec(ctx, `
 		UPDATE games SET
-			board_state    = $1,
-			current_turn   = $2,
-			dice           = $3,
-			remaining_dice = $4,
-			phase          = $5,
-			winner         = $6,
-			is_mars        = $7,
-			move_count     = $8,
-			updated_at     = NOW()
-		WHERE id = $9`,
-		boardJSON, currentTurn, dice, remainingDice, phase, winner, isMars, moveCount, gameID)
+			board_state       = $1,
+			current_turn      = $2,
+			dice              = $3,
+			remaining_dice    = $4,
+			phase             = $5,
+			winner            = $6,
+			is_mars           = $7,
+			move_count        = $8,
+			head_moves_white  = $9,
+			head_moves_black  = $10,
+			turns_white       = $11,
+			turns_black       = $12,
+			result_type       = $13,
+			result_points     = $14,
+			updated_at        = NOW()
+		WHERE id = $15`,
+		boardJSON, currentTurn, dice, remainingDice, phase, winner, isMars, moveCount,
+		headMovesWhite, headMovesBlack, turnsWhite, turnsBlack,
+		resultType, resultPoints, gameID)
 	return err
 }

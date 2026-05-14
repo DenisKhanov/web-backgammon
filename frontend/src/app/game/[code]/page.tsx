@@ -19,6 +19,7 @@ export default function GamePage() {
 
   const { phase, turn, myColor, dice, remainingDice, timeLeft, players, selectedChecker } =
     useGameStore();
+  const legalMoves = useGameStore((state) => state.legalMoves);
 
   useEffect(() => {
     if (phase === 'finished') {
@@ -28,6 +29,7 @@ export default function GamePage() {
 
   const isMyTurn = turn === myColor;
   const myName = players?.find((p) => p.color === myColor)?.name ?? '';
+  const canPass = isMyTurn && remainingDice.length > 0 && legalMoves.length === 0;
 
   return (
     <div className="min-h-screen bg-neo-bg flex flex-col md:flex-row gap-4 p-4
@@ -57,6 +59,9 @@ export default function GamePage() {
           <DiceDisplay dice={dice} remainingDice={remainingDice} />
 
           <div className="flex gap-3">
+            {canPass && (
+              <Button onClick={sendEndTurn}>Пропустить ход</Button>
+            )}
             {isMyTurn && remainingDice.length === 0 && (
               <Button onClick={sendEndTurn}>Завершить ход</Button>
             )}

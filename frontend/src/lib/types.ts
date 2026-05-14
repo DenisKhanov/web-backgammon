@@ -21,6 +21,7 @@ export interface Move {
   from: number;
   to: number;
   die: number;
+  steps?: Move[];
 }
 
 export interface GameState {
